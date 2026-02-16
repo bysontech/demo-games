@@ -16,11 +16,11 @@ const LEVEL_ACCENTS: number[] = [
 
 export class GameScene extends Phaser.Scene {
   private player!: Player
-  private enemies!: Phaser.Physics.Arcade.Group
-  private platforms!: Phaser.Physics.Arcade.StaticGroup
+  private enemies: Phaser.Physics.Arcade.Group | null = null
+  private platforms: Phaser.Physics.Arcade.StaticGroup | null = null
   private goal!: Phaser.Physics.Arcade.Sprite
   private goalGlow!: Phaser.GameObjects.Graphics
-  private hud!: HUD
+  private hud: HUD | null = null
   private currentLevel: number = 1
   private levelData!: LevelData
   private isLevelTransitioning: boolean = false
@@ -30,6 +30,7 @@ export class GameScene extends Phaser.Scene {
   private pauseMenuObjects: Phaser.GameObjects.GameObject[] = []
   private gameOverMenuObjects: Phaser.GameObjects.GameObject[] = []
   private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
+  private bgElements: Phaser.GameObjects.Graphics | null = null
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -47,13 +48,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private loadLevel(levelNumber: number): void {
-    // Clean up previous level
+    // Clean up previous level (enemies/platforms are null after shutdown, so no .clear() on destroyed groups)
     if (this.player) this.player.destroy()
     if (this.enemies) this.enemies.clear(true, true)
     if (this.platforms) this.platforms.clear(true, true)
     if (this.goal) this.goal.destroy()
     if (this.goalGlow) this.goalGlow.destroy()
-    if (this.bgElements) this.bgElements.destroy()
+    if (this.bgElements) {
+      this.bgElements.destroy()
+      this.bgElements = null
+    }
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
@@ -95,7 +99,7 @@ export class GameScene extends Phaser.Scene {
       )
       rect.setStrokeStyle(1, accent, 0.2)
       this.physics.add.existing(rect, true)
-      this.platforms.add(rect)
+      this.platforms!.add(rect)
 
       // Top accent edge (glowing line on top of platform)
       const edge = this.add.rectangle(
@@ -124,7 +128,7 @@ export class GameScene extends Phaser.Scene {
         enemyData.type,
         bounds
       )
-      this.enemies.add(enemy)
+      this.enemies!.add(enemy)
     })
 
     // Create goal
@@ -153,8 +157,8 @@ export class GameScene extends Phaser.Scene {
       this.hud = new HUD(this)
       this.hud.setPauseCallback(() => this.togglePause())
     }
-    this.hud.updateLevel(this.levelData.name)
-    this.hud.updateLives(this.player.getLives())
+    this.hud!.updateLevel(this.levelData.name)
+    this.hud!.updateLives(this.player.getLives())
 
     // Setup camera
     this.physics.world.setBounds(0, 0, 800, 900)
@@ -258,7 +262,7 @@ export class GameScene extends Phaser.Scene {
     const playerSprite = player as Player
     const isDead = playerSprite.takeDamage()
 
-    this.hud.updateLives(playerSprite.getLives())
+    this.hud!.updateLives(playerSprite.getLives())
 
     if (isDead) {
       this.gameOver()
@@ -568,12 +572,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   private restartGame(): void {
-    // Just restart the scene - cleanup will happen automatically
+    // Clear refs before restart so we don't use destroyed objects after restart
+    this.enemies = null
+    this.platforms = null
+    this.hud = null
     this.scene.restart()
   }
 
   private goToTitle(): void {
+    // Clear refs before leaving so we don't reuse destroyed objects when GameScene is started again
+    this.enemies = null
+    this.platforms = null
+    this.hud = null
     this.scene.start('MenuScene')
+  }
+
+  shutdown(): void {
+    // Clear references so we don't use destroyed objects after restart/stop
+    this.enemies = null
+    this.platforms = null
+    this.hud = null
   }
 
   update(): void {
@@ -594,7 +612,7 @@ export class GameScene extends Phaser.Scene {
     // Check for falling
     if (this.player && this.player.y > 650) {
       const isDead = this.player.takeDamage()
-      this.hud.updateLives(this.player.getLives())
+      this.hud!.updateLives(this.player.getLives())
 
       if (isDead) {
         this.gameOver()

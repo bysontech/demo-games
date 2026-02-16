@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 
 export class HUD {
+  private bg: Phaser.GameObjects.Graphics
   private livesText: Phaser.GameObjects.Text
   private levelText: Phaser.GameObjects.Text
   private pauseButton: Phaser.GameObjects.Text
@@ -33,15 +34,16 @@ export class HUD {
     this.livesText.setScrollFactor(0)
     this.livesText.setDepth(1000)
 
-    // Create pause button
-    this.pauseButton = scene.add.text(750, 16, 'ポーズ', {
-      fontSize: '20px',
+    // Create pause button (right-aligned so it stays inside 800px canvas)
+    this.pauseButton = scene.add.text(785, 16, 'ポーズ', {
+      fontSize: '18px',
       color: '#ffffff',
       backgroundColor: '#333333',
       padding: { x: 10, y: 5 },
       stroke: '#000000',
       strokeThickness: 2,
     })
+    this.pauseButton.setOrigin(1, 0)
     this.pauseButton.setScrollFactor(0)
     this.pauseButton.setDepth(1000)
     this.pauseButton.setInteractive({ useHandCursor: true })
