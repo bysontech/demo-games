@@ -1,0 +1,38 @@
+import Phaser from 'phaser'
+import type { GameModule } from '../../types'
+import { BootScene } from './scenes/BootScene'
+import { MenuScene } from './scenes/MenuScene'
+import { GameScene } from './scenes/GameScene'
+import { GameConfig } from './config'
+
+let game: Phaser.Game | null = null
+
+const platformerGame: GameModule = {
+  launch(container: HTMLElement) {
+    const config: Phaser.Types.Core.GameConfig = {
+      type: Phaser.AUTO,
+      width: GameConfig.width,
+      height: GameConfig.height,
+      parent: container,
+      physics: {
+        default: 'arcade',
+        arcade: {
+          gravity: { x: 0, y: 0 },
+          debug: false,
+        },
+      },
+      scene: [BootScene, MenuScene, GameScene],
+    }
+
+    game = new Phaser.Game(config)
+  },
+
+  destroy() {
+    if (game) {
+      game.destroy(true)
+      game = null
+    }
+  },
+}
+
+export default platformerGame
