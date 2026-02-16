@@ -23,9 +23,13 @@ export class GameScene extends Phaser.Scene {
   private hud!: HUD
   private currentLevel: number = 1
   private levelData!: LevelData
-  private restartKey!: Phaser.Input.Keyboard.Key
   private isLevelTransitioning: boolean = false
-  private bgElements: Phaser.GameObjects.Graphics | null = null
+  private isGameOver: boolean = false
+  private isVictory: boolean = false
+  private isPaused: boolean = false
+  private pauseMenuObjects: Phaser.GameObjects.GameObject[] = []
+  private gameOverMenuObjects: Phaser.GameObjects.GameObject[] = []
+  private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -34,7 +38,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.restartKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R)
+    this.isGameOver = false
+    this.isVictory = false
+    this.isPaused = false
+
+    // Load first level
     this.loadLevel(1)
   }
 
@@ -143,6 +151,7 @@ export class GameScene extends Phaser.Scene {
     // Create HUD
     if (!this.hud) {
       this.hud = new HUD(this)
+      this.hud.setPauseCallback(() => this.togglePause())
     }
     this.hud.updateLevel(this.levelData.name)
     this.hud.updateLives(this.player.getLives())
@@ -283,94 +292,295 @@ export class GameScene extends Phaser.Scene {
   }
 
   private gameOver(): void {
-    this.scene.pause()
+    this.isGameOver = true
+    // Don't pause scene to allow button interactions
+    this.showGameOverMenu()
+  }
 
-    // Dark overlay
-    const overlay = this.add.rectangle(400, 300, 800, 600, 0x0a0a0f, 0.85)
-    overlay.setScrollFactor(0)
-    overlay.setDepth(1999)
+  private showGameOverMenu(): void {
+    // Remove existing menu if any
+    this.gameOverMenuObjects.forEach(obj => obj.destroy())
+    this.gameOverMenuObjects = []
 
-    // Game over title
-    const title = this.add.text(400, 260, 'GAME OVER', {
-      fontSize: '52px',
-      color: '#f43f5e',
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontStyle: 'bold',
+    // Create semi-transparent background
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
+
+    // Create title text
+    const titleText = this.add.text(400, 200, 'GAME OVER', {
+      fontSize: '48px',
+      color: '#ffffff',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 6,
     })
-    title.setOrigin(0.5)
-    title.setScrollFactor(0)
-    title.setDepth(2000)
+    titleText.setOrigin(0.5)
+    titleText.setScrollFactor(0)
+    titleText.setDepth(2000)
 
-    // Restart hint
-    const hint = this.add.text(400, 330, 'Press R to Restart', {
-      fontSize: '16px',
-      color: '#64748b',
-      fontFamily: 'Inter, Arial, sans-serif',
+    // Create restart button
+    const restartButton = this.add.text(400, 350, 'リスタート', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
     })
-    hint.setOrigin(0.5)
-    hint.setScrollFactor(0)
-    hint.setDepth(2000)
+    restartButton.setOrigin(0.5)
+    restartButton.setScrollFactor(0)
+    restartButton.setDepth(2000)
+    restartButton.setInteractive({ useHandCursor: true })
+    restartButton.on('pointerup', () => {
+      this.restartGame()
+    })
+    restartButton.on('pointerover', () => {
+      restartButton.setBackgroundColor('#555555')
+    })
+    restartButton.on('pointerout', () => {
+      restartButton.setBackgroundColor('#333333')
+    })
 
-    this.tweens.add({
-      targets: hint,
-      alpha: { from: 0.4, to: 1 },
-      duration: 1000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
+    // Create title button
+    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
     })
+    titleButton.setOrigin(0.5)
+    titleButton.setScrollFactor(0)
+    titleButton.setDepth(2000)
+    titleButton.setInteractive({ useHandCursor: true })
+    titleButton.on('pointerup', () => {
+      this.goToTitle()
+    })
+    titleButton.on('pointerover', () => {
+      titleButton.setBackgroundColor('#555555')
+    })
+    titleButton.on('pointerout', () => {
+      titleButton.setBackgroundColor('#333333')
+    })
+
+    // Store references for cleanup
+    this.gameOverMenuObjects = [bg, titleText, restartButton, titleButton]
   }
 
   private showVictory(): void {
-    this.scene.pause()
+    this.isVictory = true
+    // Don't pause scene to allow button interactions
+    this.showVictoryMenu()
+  }
 
-    // Dark overlay
-    const overlay = this.add.rectangle(400, 300, 800, 600, 0x0a0a0f, 0.85)
-    overlay.setScrollFactor(0)
-    overlay.setDepth(1999)
+  private showVictoryMenu(): void {
+    // Remove existing menu if any
+    this.victoryMenuObjects.forEach(obj => obj.destroy())
+    this.victoryMenuObjects = []
 
-    // Victory title
-    const title = this.add.text(400, 240, 'COMPLETE', {
-      fontSize: '56px',
-      color: '#f1f5f9',
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontStyle: 'bold',
+    // Create semi-transparent background
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
+
+    // Create title text
+    const titleText = this.add.text(400, 200, 'CONGRATULATIONS!\n全レベルクリア！', {
+      fontSize: '36px',
+      color: '#FFD700',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 6,
     })
-    title.setOrigin(0.5)
-    title.setScrollFactor(0)
-    title.setDepth(2000)
+    titleText.setOrigin(0.5)
+    titleText.setScrollFactor(0)
+    titleText.setDepth(2000)
 
-    // Subtitle
-    const sub = this.add.text(400, 300, 'All stages cleared', {
-      fontSize: '18px',
-      color: '#6366f1',
-      fontFamily: 'Inter, Arial, sans-serif',
+    // Create restart button
+    const restartButton = this.add.text(400, 350, 'もう一度プレイ', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
     })
-    sub.setOrigin(0.5)
-    sub.setScrollFactor(0)
-    sub.setDepth(2000)
+    restartButton.setOrigin(0.5)
+    restartButton.setScrollFactor(0)
+    restartButton.setDepth(2000)
+    restartButton.setInteractive({ useHandCursor: true })
+    restartButton.on('pointerup', () => {
+      this.restartGame()
+    })
+    restartButton.on('pointerover', () => {
+      restartButton.setBackgroundColor('#555555')
+    })
+    restartButton.on('pointerout', () => {
+      restartButton.setBackgroundColor('#333333')
+    })
 
-    // Restart hint
-    const hint = this.add.text(400, 360, 'Press R to Play Again', {
-      fontSize: '14px',
-      color: '#64748b',
-      fontFamily: 'Inter, Arial, sans-serif',
+    // Create title button
+    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
     })
-    hint.setOrigin(0.5)
-    hint.setScrollFactor(0)
-    hint.setDepth(2000)
+    titleButton.setOrigin(0.5)
+    titleButton.setScrollFactor(0)
+    titleButton.setDepth(2000)
+    titleButton.setInteractive({ useHandCursor: true })
+    titleButton.on('pointerup', () => {
+      this.goToTitle()
+    })
+    titleButton.on('pointerover', () => {
+      titleButton.setBackgroundColor('#555555')
+    })
+    titleButton.on('pointerout', () => {
+      titleButton.setBackgroundColor('#333333')
+    })
 
-    this.tweens.add({
-      targets: hint,
-      alpha: { from: 0.4, to: 1 },
-      duration: 1000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
+    // Store references for cleanup
+    this.victoryMenuObjects = [bg, titleText, restartButton, titleButton]
+  }
+
+  private togglePause(): void {
+    if (this.isGameOver || this.isVictory) {
+      return
+    }
+
+    if (this.isPaused) {
+      this.resumeGame()
+    } else {
+      this.pauseGame()
+    }
+  }
+
+  private pauseGame(): void {
+    this.isPaused = true
+    // Don't pause scene to allow button interactions
+    this.showPauseMenu()
+  }
+
+  private resumeGame(): void {
+    this.isPaused = false
+    this.pauseMenuObjects.forEach(obj => obj.destroy())
+    this.pauseMenuObjects = []
+    // Scene is not paused, so no need to resume
+  }
+
+  private showPauseMenu(): void {
+    // Remove existing menu if any
+    this.pauseMenuObjects.forEach(obj => obj.destroy())
+    this.pauseMenuObjects = []
+
+    // Create semi-transparent background
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
+
+    // Create title text
+    const titleText = this.add.text(400, 200, 'ポーズ', {
+      fontSize: '48px',
+      color: '#ffffff',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 6,
     })
+    titleText.setOrigin(0.5)
+    titleText.setScrollFactor(0)
+    titleText.setDepth(2000)
+
+    // Create resume button
+    const resumeButton = this.add.text(400, 300, 'ゲームを再開', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    resumeButton.setOrigin(0.5)
+    resumeButton.setScrollFactor(0)
+    resumeButton.setDepth(2000)
+    resumeButton.setInteractive({ useHandCursor: true })
+    resumeButton.on('pointerup', () => {
+      this.resumeGame()
+    })
+    resumeButton.on('pointerover', () => {
+      resumeButton.setBackgroundColor('#555555')
+    })
+    resumeButton.on('pointerout', () => {
+      resumeButton.setBackgroundColor('#333333')
+    })
+
+    // Create restart button
+    const restartButton = this.add.text(400, 370, 'リスタート', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    restartButton.setOrigin(0.5)
+    restartButton.setScrollFactor(0)
+    restartButton.setDepth(2000)
+    restartButton.setInteractive({ useHandCursor: true })
+    restartButton.on('pointerup', () => {
+      this.restartGame()
+    })
+    restartButton.on('pointerover', () => {
+      restartButton.setBackgroundColor('#555555')
+    })
+    restartButton.on('pointerout', () => {
+      restartButton.setBackgroundColor('#333333')
+    })
+
+    // Create title button
+    const titleButton = this.add.text(400, 440, 'タイトルに戻る', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    titleButton.setOrigin(0.5)
+    titleButton.setScrollFactor(0)
+    titleButton.setDepth(2000)
+    titleButton.setInteractive({ useHandCursor: true })
+    titleButton.on('pointerup', () => {
+      this.goToTitle()
+    })
+    titleButton.on('pointerover', () => {
+      titleButton.setBackgroundColor('#555555')
+    })
+    titleButton.on('pointerout', () => {
+      titleButton.setBackgroundColor('#333333')
+    })
+
+    // Store references for cleanup
+    this.pauseMenuObjects = [bg, titleText, resumeButton, restartButton, titleButton]
+  }
+
+  private restartGame(): void {
+    // Just restart the scene - cleanup will happen automatically
+    this.scene.restart()
+  }
+
+  private goToTitle(): void {
+    this.scene.start('MenuScene')
   }
 
   update(): void {
+    if (this.isPaused || this.isGameOver || this.isVictory) {
+      return
+    }
+
     if (this.player && this.player.active) {
       this.player.update()
     }
@@ -395,13 +605,6 @@ export class GameScene extends Phaser.Scene {
         )
         this.player.setVelocity(0, 0)
       }
-    }
-
-    // Restart
-    if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
-      this.scene.restart()
-      this.player.resetLives()
-      this.loadLevel(1)
     }
   }
 }
