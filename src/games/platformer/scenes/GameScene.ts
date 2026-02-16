@@ -14,6 +14,11 @@ const LEVEL_ACCENTS: number[] = [
   0x6366f1, 0x10b981, 0xf43f5e, 0xa855f7, 0xef4444,
 ]
 
+// Shared button style constants
+const BTN_FONT = 'Inter, Arial, sans-serif'
+const BTN_NORMAL = '#1e1e2e'
+const BTN_HOVER = '#2a2a3e'
+
 export class GameScene extends Phaser.Scene {
   private player!: Player
   private enemies!: Phaser.Physics.Arcade.Group
@@ -27,6 +32,7 @@ export class GameScene extends Phaser.Scene {
   private isGameOver: boolean = false
   private isVictory: boolean = false
   private isPaused: boolean = false
+  private bgElements: Phaser.GameObjects.Graphics | null = null
   private pauseMenuObjects: Phaser.GameObjects.GameObject[] = []
   private gameOverMenuObjects: Phaser.GameObjects.GameObject[] = []
   private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
@@ -42,7 +48,6 @@ export class GameScene extends Phaser.Scene {
     this.isVictory = false
     this.isPaused = false
 
-    // Load first level
     this.loadLevel(1)
   }
 
@@ -86,7 +91,6 @@ export class GameScene extends Phaser.Scene {
       const cx = platform.x + platform.width / 2
       const cy = platform.y + platform.height / 2
 
-      // Platform body (dark with subtle accent)
       const rect = this.add.rectangle(
         cx, cy,
         platform.width,
@@ -97,7 +101,7 @@ export class GameScene extends Phaser.Scene {
       this.physics.add.existing(rect, true)
       this.platforms.add(rect)
 
-      // Top accent edge (glowing line on top of platform)
+      // Top accent edge
       const edge = this.add.rectangle(
         cx, platform.y + 1,
         platform.width, 2,
@@ -166,7 +170,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createGoal(accent: number): void {
-    // Goal glow effect (background circle)
     this.goalGlow = this.add.graphics()
     this.goalGlow.fillStyle(accent, 0.15)
     this.goalGlow.fillCircle(this.levelData.goalX, this.levelData.goalY, 24)
@@ -183,21 +186,13 @@ export class GameScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     })
 
-    // Goal sprite (diamond shape)
     const graphics = this.make.graphics({ x: 0, y: 0 }, false)
-
-    // Outer glow
     graphics.fillStyle(accent, 0.3)
     graphics.fillCircle(16, 16, 14)
-
-    // Inner bright core
     graphics.fillStyle(0xffffff, 0.9)
     graphics.fillCircle(16, 16, 6)
-
-    // Middle ring
     graphics.lineStyle(2, accent, 0.8)
     graphics.strokeCircle(16, 16, 10)
-
     graphics.generateTexture('goal', 32, 32)
     graphics.destroy()
 
@@ -291,161 +286,128 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // ── Styled button helper ──────────────────────────────────
+
+  private createStyledButton(
+    x: number, y: number, label: string, color: string, onClick: () => void
+  ): Phaser.GameObjects.Text {
+    const btn = this.add.text(x, y, label, {
+      fontSize: '18px',
+      color,
+      fontFamily: BTN_FONT,
+      fontStyle: 'bold',
+      backgroundColor: BTN_NORMAL,
+      padding: { x: 24, y: 10 },
+    })
+    btn.setOrigin(0.5)
+    btn.setScrollFactor(0)
+    btn.setDepth(2000)
+    btn.setInteractive({ useHandCursor: true })
+    btn.on('pointerup', onClick)
+    btn.on('pointerover', () => btn.setBackgroundColor(BTN_HOVER))
+    btn.on('pointerout', () => btn.setBackgroundColor(BTN_NORMAL))
+    return btn
+  }
+
+  private createOverlayBg(): Phaser.GameObjects.Rectangle {
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x0a0a0f, 0.88)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
+    return bg
+  }
+
+  private createOverlayTitle(
+    y: number, text: string, color: string, size = '48px'
+  ): Phaser.GameObjects.Text {
+    const t = this.add.text(400, y, text, {
+      fontSize: size,
+      color,
+      fontFamily: BTN_FONT,
+      fontStyle: 'bold',
+      align: 'center',
+    })
+    t.setOrigin(0.5)
+    t.setScrollFactor(0)
+    t.setDepth(2000)
+    return t
+  }
+
+  // ── Game Over ─────────────────────────────────────────────
+
   private gameOver(): void {
     this.isGameOver = true
-    // Don't pause scene to allow button interactions
     this.showGameOverMenu()
   }
 
   private showGameOverMenu(): void {
-    // Remove existing menu if any
     this.gameOverMenuObjects.forEach(obj => obj.destroy())
     this.gameOverMenuObjects = []
 
-    // Create semi-transparent background
-    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
-    bg.setScrollFactor(0)
-    bg.setDepth(1999)
+    const bg = this.createOverlayBg()
+    const title = this.createOverlayTitle(220, 'GAME OVER', '#f43f5e')
 
-    // Create title text
-    const titleText = this.add.text(400, 200, 'GAME OVER', {
-      fontSize: '48px',
-      color: '#ffffff',
-      align: 'center',
-      stroke: '#000000',
-      strokeThickness: 6,
+    const sub = this.add.text(400, 275, 'ライフがなくなりました', {
+      fontSize: '14px',
+      color: '#64748b',
+      fontFamily: BTN_FONT,
     })
-    titleText.setOrigin(0.5)
-    titleText.setScrollFactor(0)
-    titleText.setDepth(2000)
+    sub.setOrigin(0.5)
+    sub.setScrollFactor(0)
+    sub.setDepth(2000)
 
-    // Create restart button
-    const restartButton = this.add.text(400, 350, 'リスタート', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    restartButton.setOrigin(0.5)
-    restartButton.setScrollFactor(0)
-    restartButton.setDepth(2000)
-    restartButton.setInteractive({ useHandCursor: true })
-    restartButton.on('pointerup', () => {
-      this.restartGame()
-    })
-    restartButton.on('pointerover', () => {
-      restartButton.setBackgroundColor('#555555')
-    })
-    restartButton.on('pointerout', () => {
-      restartButton.setBackgroundColor('#333333')
-    })
+    const restartBtn = this.createStyledButton(
+      400, 340, 'リスタート', '#6366f1', () => this.restartGame()
+    )
+    const titleBtn = this.createStyledButton(
+      400, 400, 'タイトルに戻る', '#94a3b8', () => this.goToTitle()
+    )
 
-    // Create title button
-    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    titleButton.setOrigin(0.5)
-    titleButton.setScrollFactor(0)
-    titleButton.setDepth(2000)
-    titleButton.setInteractive({ useHandCursor: true })
-    titleButton.on('pointerup', () => {
-      this.goToTitle()
-    })
-    titleButton.on('pointerover', () => {
-      titleButton.setBackgroundColor('#555555')
-    })
-    titleButton.on('pointerout', () => {
-      titleButton.setBackgroundColor('#333333')
-    })
-
-    // Store references for cleanup
-    this.gameOverMenuObjects = [bg, titleText, restartButton, titleButton]
+    this.gameOverMenuObjects = [bg, title, sub, restartBtn, titleBtn]
   }
+
+  // ── Victory ───────────────────────────────────────────────
 
   private showVictory(): void {
     this.isVictory = true
-    // Don't pause scene to allow button interactions
     this.showVictoryMenu()
   }
 
   private showVictoryMenu(): void {
-    // Remove existing menu if any
     this.victoryMenuObjects.forEach(obj => obj.destroy())
     this.victoryMenuObjects = []
 
-    // Create semi-transparent background
-    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
-    bg.setScrollFactor(0)
-    bg.setDepth(1999)
+    const bg = this.createOverlayBg()
+    const title = this.createOverlayTitle(200, 'COMPLETE', '#f1f5f9', '56px')
 
-    // Create title text
-    const titleText = this.add.text(400, 200, 'CONGRATULATIONS!\n全レベルクリア！', {
-      fontSize: '36px',
-      color: '#FFD700',
-      align: 'center',
-      stroke: '#000000',
-      strokeThickness: 6,
+    const sub = this.add.text(400, 260, '全レベルクリア！', {
+      fontSize: '18px',
+      color: '#6366f1',
+      fontFamily: BTN_FONT,
     })
-    titleText.setOrigin(0.5)
-    titleText.setScrollFactor(0)
-    titleText.setDepth(2000)
+    sub.setOrigin(0.5)
+    sub.setScrollFactor(0)
+    sub.setDepth(2000)
 
-    // Create restart button
-    const restartButton = this.add.text(400, 350, 'もう一度プレイ', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    restartButton.setOrigin(0.5)
-    restartButton.setScrollFactor(0)
-    restartButton.setDepth(2000)
-    restartButton.setInteractive({ useHandCursor: true })
-    restartButton.on('pointerup', () => {
-      this.restartGame()
-    })
-    restartButton.on('pointerover', () => {
-      restartButton.setBackgroundColor('#555555')
-    })
-    restartButton.on('pointerout', () => {
-      restartButton.setBackgroundColor('#333333')
-    })
+    // Stage dots
+    const dots = this.add.graphics()
+    dots.setScrollFactor(0)
+    dots.setDepth(2000)
+    for (let i = 0; i < 5; i++) {
+      dots.fillStyle(0x6366f1, 0.8)
+      dots.fillCircle(370 + i * 16, 295, 4)
+    }
 
-    // Create title button
-    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    titleButton.setOrigin(0.5)
-    titleButton.setScrollFactor(0)
-    titleButton.setDepth(2000)
-    titleButton.setInteractive({ useHandCursor: true })
-    titleButton.on('pointerup', () => {
-      this.goToTitle()
-    })
-    titleButton.on('pointerover', () => {
-      titleButton.setBackgroundColor('#555555')
-    })
-    titleButton.on('pointerout', () => {
-      titleButton.setBackgroundColor('#333333')
-    })
+    const restartBtn = this.createStyledButton(
+      400, 350, 'もう一度プレイ', '#6366f1', () => this.restartGame()
+    )
+    const titleBtn = this.createStyledButton(
+      400, 410, 'タイトルに戻る', '#94a3b8', () => this.goToTitle()
+    )
 
-    // Store references for cleanup
-    this.victoryMenuObjects = [bg, titleText, restartButton, titleButton]
+    this.victoryMenuObjects = [bg, title, sub, dots, restartBtn, titleBtn]
   }
+
+  // ── Pause ─────────────────────────────────────────────────
 
   private togglePause(): void {
     if (this.isGameOver || this.isVictory) {
@@ -461,7 +423,6 @@ export class GameScene extends Phaser.Scene {
 
   private pauseGame(): void {
     this.isPaused = true
-    // Don't pause scene to allow button interactions
     this.showPauseMenu()
   }
 
@@ -469,112 +430,39 @@ export class GameScene extends Phaser.Scene {
     this.isPaused = false
     this.pauseMenuObjects.forEach(obj => obj.destroy())
     this.pauseMenuObjects = []
-    // Scene is not paused, so no need to resume
   }
 
   private showPauseMenu(): void {
-    // Remove existing menu if any
     this.pauseMenuObjects.forEach(obj => obj.destroy())
     this.pauseMenuObjects = []
 
-    // Create semi-transparent background
-    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
-    bg.setScrollFactor(0)
-    bg.setDepth(1999)
+    const bg = this.createOverlayBg()
+    const title = this.createOverlayTitle(210, 'PAUSED', '#f1f5f9')
 
-    // Create title text
-    const titleText = this.add.text(400, 200, 'ポーズ', {
-      fontSize: '48px',
-      color: '#ffffff',
-      align: 'center',
-      stroke: '#000000',
-      strokeThickness: 6,
-    })
-    titleText.setOrigin(0.5)
-    titleText.setScrollFactor(0)
-    titleText.setDepth(2000)
+    const resumeBtn = this.createStyledButton(
+      400, 300, 'ゲームを再開', '#6366f1', () => this.resumeGame()
+    )
+    const restartBtn = this.createStyledButton(
+      400, 360, 'リスタート', '#94a3b8', () => this.restartGame()
+    )
+    const titleBtn = this.createStyledButton(
+      400, 420, 'タイトルに戻る', '#94a3b8', () => this.goToTitle()
+    )
 
-    // Create resume button
-    const resumeButton = this.add.text(400, 300, 'ゲームを再開', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    resumeButton.setOrigin(0.5)
-    resumeButton.setScrollFactor(0)
-    resumeButton.setDepth(2000)
-    resumeButton.setInteractive({ useHandCursor: true })
-    resumeButton.on('pointerup', () => {
-      this.resumeGame()
-    })
-    resumeButton.on('pointerover', () => {
-      resumeButton.setBackgroundColor('#555555')
-    })
-    resumeButton.on('pointerout', () => {
-      resumeButton.setBackgroundColor('#333333')
-    })
-
-    // Create restart button
-    const restartButton = this.add.text(400, 370, 'リスタート', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    restartButton.setOrigin(0.5)
-    restartButton.setScrollFactor(0)
-    restartButton.setDepth(2000)
-    restartButton.setInteractive({ useHandCursor: true })
-    restartButton.on('pointerup', () => {
-      this.restartGame()
-    })
-    restartButton.on('pointerover', () => {
-      restartButton.setBackgroundColor('#555555')
-    })
-    restartButton.on('pointerout', () => {
-      restartButton.setBackgroundColor('#333333')
-    })
-
-    // Create title button
-    const titleButton = this.add.text(400, 440, 'タイトルに戻る', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    titleButton.setOrigin(0.5)
-    titleButton.setScrollFactor(0)
-    titleButton.setDepth(2000)
-    titleButton.setInteractive({ useHandCursor: true })
-    titleButton.on('pointerup', () => {
-      this.goToTitle()
-    })
-    titleButton.on('pointerover', () => {
-      titleButton.setBackgroundColor('#555555')
-    })
-    titleButton.on('pointerout', () => {
-      titleButton.setBackgroundColor('#333333')
-    })
-
-    // Store references for cleanup
-    this.pauseMenuObjects = [bg, titleText, resumeButton, restartButton, titleButton]
+    this.pauseMenuObjects = [bg, title, resumeBtn, restartBtn, titleBtn]
   }
 
+  // ── Navigation ────────────────────────────────────────────
+
   private restartGame(): void {
-    // Just restart the scene - cleanup will happen automatically
     this.scene.restart()
   }
 
   private goToTitle(): void {
     this.scene.start('MenuScene')
   }
+
+  // ── Update ────────────────────────────────────────────────
 
   update(): void {
     if (this.isPaused || this.isGameOver || this.isVictory) {
