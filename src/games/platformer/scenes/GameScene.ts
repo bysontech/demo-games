@@ -9,16 +9,23 @@ import { level3 } from '../levels/level3'
 import { level4 } from '../levels/level4'
 import { level5 } from '../levels/level5'
 
+// Level accent colors (indigo -> teal -> rose -> purple -> crimson)
+const LEVEL_ACCENTS: number[] = [
+  0x6366f1, 0x10b981, 0xf43f5e, 0xa855f7, 0xef4444,
+]
+
 export class GameScene extends Phaser.Scene {
   private player!: Player
   private enemies!: Phaser.Physics.Arcade.Group
   private platforms!: Phaser.Physics.Arcade.StaticGroup
   private goal!: Phaser.Physics.Arcade.Sprite
+  private goalGlow!: Phaser.GameObjects.Graphics
   private hud!: HUD
   private currentLevel: number = 1
   private levelData!: LevelData
   private restartKey!: Phaser.Input.Keyboard.Key
   private isLevelTransitioning: boolean = false
+  private bgElements: Phaser.GameObjects.Graphics | null = null
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -28,8 +35,6 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.restartKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R)
-
-    // Load first level
     this.loadLevel(1)
   }
 
@@ -39,26 +44,58 @@ export class GameScene extends Phaser.Scene {
     if (this.enemies) this.enemies.clear(true, true)
     if (this.platforms) this.platforms.clear(true, true)
     if (this.goal) this.goal.destroy()
+    if (this.goalGlow) this.goalGlow.destroy()
+    if (this.bgElements) this.bgElements.destroy()
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
     this.levelData = this.levels[levelNumber - 1]
+    const accent = LEVEL_ACCENTS[levelNumber - 1]
 
-    // Set background color
+    // Set background
     this.cameras.main.setBackgroundColor(this.levelData.backgroundColor)
 
-    // Create platforms
+    // Background ambient elements
+    this.bgElements = this.add.graphics()
+    this.bgElements.setDepth(-1)
+
+    // Subtle ambient glow based on level accent
+    this.bgElements.fillStyle(accent, 0.04)
+    this.bgElements.fillCircle(200, 300, 300)
+    this.bgElements.fillCircle(600, 200, 250)
+
+    // Dot grid
+    this.bgElements.fillStyle(0xffffff, 0.015)
+    for (let x = 20; x < 800; x += 40) {
+      for (let y = 20; y < 600; y += 40) {
+        this.bgElements.fillCircle(x, y, 0.8)
+      }
+    }
+
+    // Create platforms with modern style
     this.platforms = this.physics.add.staticGroup()
     this.levelData.platforms.forEach((platform) => {
+      const cx = platform.x + platform.width / 2
+      const cy = platform.y + platform.height / 2
+
+      // Platform body (dark with subtle accent)
       const rect = this.add.rectangle(
-        platform.x + platform.width / 2,
-        platform.y + platform.height / 2,
+        cx, cy,
         platform.width,
         platform.height,
-        0x8B4513
+        0x1e293b
       )
+      rect.setStrokeStyle(1, accent, 0.2)
       this.physics.add.existing(rect, true)
       this.platforms.add(rect)
+
+      // Top accent edge (glowing line on top of platform)
+      const edge = this.add.rectangle(
+        cx, platform.y + 1,
+        platform.width, 2,
+        accent, 0.5
+      )
+      edge.setDepth(1)
     })
 
     // Create player
@@ -83,7 +120,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Create goal
-    this.createGoal()
+    this.createGoal(accent)
 
     // Setup collisions
     this.physics.add.collider(this.player, this.platforms)
@@ -114,12 +151,44 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, 800, 900)
     this.cameras.main.setBounds(0, 0, 800, 600)
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
+
+    // Fade in
+    this.cameras.main.fadeIn(400, 10, 10, 15)
   }
 
-  private createGoal(): void {
+  private createGoal(accent: number): void {
+    // Goal glow effect (background circle)
+    this.goalGlow = this.add.graphics()
+    this.goalGlow.fillStyle(accent, 0.15)
+    this.goalGlow.fillCircle(this.levelData.goalX, this.levelData.goalY, 24)
+    this.goalGlow.setDepth(0)
+
+    this.tweens.add({
+      targets: this.goalGlow,
+      alpha: { from: 0.4, to: 1 },
+      scaleX: { from: 0.9, to: 1.2 },
+      scaleY: { from: 0.9, to: 1.2 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    // Goal sprite (diamond shape)
     const graphics = this.make.graphics({ x: 0, y: 0 }, false)
-    graphics.fillStyle(0xFFD700, 1)
-    graphics.fillCircle(16, 16, 12)
+
+    // Outer glow
+    graphics.fillStyle(accent, 0.3)
+    graphics.fillCircle(16, 16, 14)
+
+    // Inner bright core
+    graphics.fillStyle(0xffffff, 0.9)
+    graphics.fillCircle(16, 16, 6)
+
+    // Middle ring
+    graphics.lineStyle(2, accent, 0.8)
+    graphics.strokeCircle(16, 16, 10)
+
     graphics.generateTexture('goal', 32, 32)
     graphics.destroy()
 
@@ -130,11 +199,10 @@ export class GameScene extends Phaser.Scene {
     )
     this.goal.setImmovable(true)
 
-    // Add tween for visual effect
     this.tweens.add({
       targets: this.goal,
       angle: 360,
-      duration: 2000,
+      duration: 3000,
       repeat: -1,
     })
   }
@@ -186,7 +254,6 @@ export class GameScene extends Phaser.Scene {
     if (isDead) {
       this.gameOver()
     } else {
-      // Respawn player at start position
       playerSprite.setPosition(
         this.levelData.playerStartX,
         this.levelData.playerStartY
@@ -202,53 +269,105 @@ export class GameScene extends Phaser.Scene {
 
     this.isLevelTransitioning = true
     this.goal.disableBody(true, true)
-
-    // Disable player control
     this.player.setActive(false)
 
     if (this.currentLevel < this.levels.length) {
-      // Load next level
+      this.cameras.main.fadeOut(400, 10, 10, 15)
       this.time.delayedCall(500, () => {
         this.player.resetLives()
         this.loadLevel(this.currentLevel + 1)
       })
     } else {
-      // Game completed
       this.showVictory()
     }
   }
 
   private gameOver(): void {
     this.scene.pause()
-    const text = this.add.text(400, 300, 'GAME OVER\nPress R to Restart', {
-      fontSize: '48px',
-      color: '#ffffff',
-      align: 'center',
-      stroke: '#000000',
-      strokeThickness: 6,
+
+    // Dark overlay
+    const overlay = this.add.rectangle(400, 300, 800, 600, 0x0a0a0f, 0.85)
+    overlay.setScrollFactor(0)
+    overlay.setDepth(1999)
+
+    // Game over title
+    const title = this.add.text(400, 260, 'GAME OVER', {
+      fontSize: '52px',
+      color: '#f43f5e',
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontStyle: 'bold',
     })
-    text.setOrigin(0.5)
-    text.setScrollFactor(0)
-    text.setDepth(2000)
+    title.setOrigin(0.5)
+    title.setScrollFactor(0)
+    title.setDepth(2000)
+
+    // Restart hint
+    const hint = this.add.text(400, 330, 'Press R to Restart', {
+      fontSize: '16px',
+      color: '#64748b',
+      fontFamily: 'Inter, Arial, sans-serif',
+    })
+    hint.setOrigin(0.5)
+    hint.setScrollFactor(0)
+    hint.setDepth(2000)
+
+    this.tweens.add({
+      targets: hint,
+      alpha: { from: 0.4, to: 1 },
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
   }
 
   private showVictory(): void {
     this.scene.pause()
-    const text = this.add.text(
-      400,
-      300,
-      'CONGRATULATIONS!\nYou completed all levels!\nPress R to Play Again',
-      {
-        fontSize: '36px',
-        color: '#FFD700',
-        align: 'center',
-        stroke: '#000000',
-        strokeThickness: 6,
-      }
-    )
-    text.setOrigin(0.5)
-    text.setScrollFactor(0)
-    text.setDepth(2000)
+
+    // Dark overlay
+    const overlay = this.add.rectangle(400, 300, 800, 600, 0x0a0a0f, 0.85)
+    overlay.setScrollFactor(0)
+    overlay.setDepth(1999)
+
+    // Victory title
+    const title = this.add.text(400, 240, 'COMPLETE', {
+      fontSize: '56px',
+      color: '#f1f5f9',
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontStyle: 'bold',
+    })
+    title.setOrigin(0.5)
+    title.setScrollFactor(0)
+    title.setDepth(2000)
+
+    // Subtitle
+    const sub = this.add.text(400, 300, 'All stages cleared', {
+      fontSize: '18px',
+      color: '#6366f1',
+      fontFamily: 'Inter, Arial, sans-serif',
+    })
+    sub.setOrigin(0.5)
+    sub.setScrollFactor(0)
+    sub.setDepth(2000)
+
+    // Restart hint
+    const hint = this.add.text(400, 360, 'Press R to Play Again', {
+      fontSize: '14px',
+      color: '#64748b',
+      fontFamily: 'Inter, Arial, sans-serif',
+    })
+    hint.setOrigin(0.5)
+    hint.setScrollFactor(0)
+    hint.setDepth(2000)
+
+    this.tweens.add({
+      targets: hint,
+      alpha: { from: 0.4, to: 1 },
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
   }
 
   update(): void {
@@ -256,14 +375,13 @@ export class GameScene extends Phaser.Scene {
       this.player.update()
     }
 
-    // Update enemies
     this.enemies?.children.entries.forEach((enemy) => {
       if (enemy.active) {
         ;(enemy as Enemy).update()
       }
     })
 
-    // Check for falling off the world
+    // Check for falling
     if (this.player && this.player.y > 650) {
       const isDead = this.player.takeDamage()
       this.hud.updateLives(this.player.getLives())

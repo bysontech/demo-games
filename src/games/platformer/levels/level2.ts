@@ -5,7 +5,7 @@ export const level2: LevelData = {
   levelNumber: 2,
   playerStartX: 100,
   playerStartY: 400,
-  backgroundColor: 0x90EE90,
+  backgroundColor: 0x0c1f14,
   platforms: [
     // Ground with gaps
     { x: 0, y: 550, width: 250, height: 50 },

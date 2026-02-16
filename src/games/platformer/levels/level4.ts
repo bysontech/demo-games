@@ -5,7 +5,7 @@ export const level4: LevelData = {
   levelNumber: 4,
   playerStartX: 100,
   playerStartY: 400,
-  backgroundColor: 0xDDA0DD,
+  backgroundColor: 0x150c1f,
   platforms: [
     // Starting platform
     { x: 0, y: 550, width: 200, height: 50 },

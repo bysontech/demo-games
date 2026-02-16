@@ -34,26 +34,44 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.setGravityY(GameConfig.gravity)
     }
 
-    // Create visual
     this.createVisual(type)
   }
 
   private createVisual(type: 'walker' | 'flyer'): void {
-    const color = type === 'walker' ? 0x800080 : 0xFF00FF
+    const size = 32
     const graphics = this.scene.make.graphics({ x: 0, y: 0 }, false)
 
-    graphics.fillStyle(color, 1)
-    graphics.fillRect(0, 0, 32, 32)
+    if (type === 'walker') {
+      // Rose/crimson body
+      graphics.fillStyle(0xbe123c, 1)
+      graphics.fillRoundedRect(2, 2, size - 4, size - 4, 4)
 
-    // Add eyes
-    graphics.fillStyle(0xFFFFFF, 1)
-    graphics.fillCircle(8, 10, 4)
-    graphics.fillCircle(24, 10, 4)
-    graphics.fillStyle(0xFF0000, 1)
-    graphics.fillCircle(8, 10, 2)
-    graphics.fillCircle(24, 10, 2)
+      graphics.fillStyle(0x9f1239, 1)
+      graphics.fillRoundedRect(4, 12, size - 8, size - 16, 3)
+    } else {
+      // Magenta/purple body
+      graphics.fillStyle(0xc026d3, 1)
+      graphics.fillRoundedRect(2, 2, size - 4, size - 4, 4)
 
-    graphics.generateTexture(`enemy-${type}`, 32, 32)
+      graphics.fillStyle(0xa21caf, 1)
+      graphics.fillRoundedRect(4, 12, size - 8, size - 16, 3)
+    }
+
+    // Eyes - glowing amber
+    graphics.fillStyle(0xfb923c, 1)
+    graphics.fillCircle(10, 10, 3)
+    graphics.fillCircle(22, 10, 3)
+
+    // Eye centers - bright yellow
+    graphics.fillStyle(0xfef08a, 1)
+    graphics.fillCircle(10, 9, 1.5)
+    graphics.fillCircle(22, 9, 1.5)
+
+    // Bottom accent
+    graphics.fillStyle(0xf43f5e, 0.5)
+    graphics.fillRect(6, size - 6, size - 12, 2)
+
+    graphics.generateTexture(`enemy-${type}`, size, size)
     graphics.destroy()
 
     this.setTexture(`enemy-${type}`)
