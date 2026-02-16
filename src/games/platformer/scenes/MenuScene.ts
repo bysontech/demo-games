@@ -1,15 +1,21 @@
 import Phaser from 'phaser'
 
 export class MenuScene extends Phaser.Scene {
+  private spaceKeyListener?: () => void
+
   constructor() {
     super({ key: 'MenuScene' })
   }
 
   create(): void {
+    // Remove old listener if exists
+    if (this.spaceKeyListener) {
+      this.input.keyboard!.off('keydown-SPACE', this.spaceKeyListener)
+    }
     this.cameras.main.setBackgroundColor(0x2c3e50)
 
     // Title
-    const title = this.add.text(400, 200, '横スクロールアクションゲーム', {
+    const title = this.add.text(400, 150, '横スクロールアクションゲーム', {
       fontSize: '48px',
       color: '#ffffff',
       stroke: '#000000',
@@ -20,8 +26,8 @@ export class MenuScene extends Phaser.Scene {
     // Instructions
     const instructions = this.add.text(
       400,
-      320,
-      '操作方法:\n\n← → : 左右移動\nスペース : ジャンプ\nR : リスタート\n\n全5レベルをクリアしよう！',
+      350,
+      '操作方法:\n\n← → : 左右移動\nスペース : ジャンプ\n\n全5レベルをクリアしよう！',
       {
         fontSize: '24px',
         color: '#ffffff',
@@ -50,8 +56,10 @@ export class MenuScene extends Phaser.Scene {
     })
 
     // Start game on space key
-    this.input.keyboard!.once('keydown-SPACE', () => {
+    // Use on instead of once to allow multiple starts
+    this.spaceKeyListener = () => {
       this.scene.start('GameScene')
-    })
+    }
+    this.input.keyboard!.on('keydown-SPACE', this.spaceKeyListener)
   }
 }
