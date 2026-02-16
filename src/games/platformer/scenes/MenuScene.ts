@@ -44,15 +44,38 @@ export class MenuScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 4,
     })
-    startButton.setOrigin(0.5)
 
-    // Blink effect
+    // Stage info
+    this.add.text(400, 410, '5 STAGES', {
+      fontSize: '13px',
+      color: '#94a3b8',
+      fontFamily: 'Inter, Arial, sans-serif',
+    }).setOrigin(0.5)
+
+    // Stage dots
+    const stageDots = this.add.graphics()
+    for (let i = 0; i < 5; i++) {
+      const dx = 370 + i * 16
+      stageDots.fillStyle(0x6366f1, 0.6)
+      stageDots.fillCircle(dx, 434, 4)
+    }
+
+    // Start prompt
+    const startText = this.add.text(400, 510, 'PRESS SPACE TO START', {
+      fontSize: '16px',
+      color: '#6366f1',
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontStyle: 'bold',
+    })
+    startText.setOrigin(0.5)
+
     this.tweens.add({
-      targets: startButton,
+      targets: startText,
       alpha: 0.3,
-      duration: 800,
+      duration: 1200,
       yoyo: true,
       repeat: -1,
+      ease: 'Sine.easeInOut',
     })
 
     // Start game on space key

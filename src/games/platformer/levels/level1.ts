@@ -28,7 +28,7 @@ export const level1: LevelData = {
   levelNumber: 1,
   playerStartX: 100,
   playerStartY: 400,
-  backgroundColor: 0x87CEEB,
+  backgroundColor: 0x0c1929,
   platforms: [
     // Ground
     { x: 0, y: 550, width: 800, height: 50 },

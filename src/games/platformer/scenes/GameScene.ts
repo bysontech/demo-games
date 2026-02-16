@@ -9,11 +9,17 @@ import { level3 } from '../levels/level3'
 import { level4 } from '../levels/level4'
 import { level5 } from '../levels/level5'
 
+// Level accent colors (indigo -> teal -> rose -> purple -> crimson)
+const LEVEL_ACCENTS: number[] = [
+  0x6366f1, 0x10b981, 0xf43f5e, 0xa855f7, 0xef4444,
+]
+
 export class GameScene extends Phaser.Scene {
   private player!: Player
   private enemies!: Phaser.Physics.Arcade.Group
   private platforms!: Phaser.Physics.Arcade.StaticGroup
   private goal!: Phaser.Physics.Arcade.Sprite
+  private goalGlow!: Phaser.GameObjects.Graphics
   private hud!: HUD
   private currentLevel: number = 1
   private levelData!: LevelData
@@ -46,26 +52,58 @@ export class GameScene extends Phaser.Scene {
     if (this.enemies) this.enemies.clear(true, true)
     if (this.platforms) this.platforms.clear(true, true)
     if (this.goal) this.goal.destroy()
+    if (this.goalGlow) this.goalGlow.destroy()
+    if (this.bgElements) this.bgElements.destroy()
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
     this.levelData = this.levels[levelNumber - 1]
+    const accent = LEVEL_ACCENTS[levelNumber - 1]
 
-    // Set background color
+    // Set background
     this.cameras.main.setBackgroundColor(this.levelData.backgroundColor)
 
-    // Create platforms
+    // Background ambient elements
+    this.bgElements = this.add.graphics()
+    this.bgElements.setDepth(-1)
+
+    // Subtle ambient glow based on level accent
+    this.bgElements.fillStyle(accent, 0.04)
+    this.bgElements.fillCircle(200, 300, 300)
+    this.bgElements.fillCircle(600, 200, 250)
+
+    // Dot grid
+    this.bgElements.fillStyle(0xffffff, 0.015)
+    for (let x = 20; x < 800; x += 40) {
+      for (let y = 20; y < 600; y += 40) {
+        this.bgElements.fillCircle(x, y, 0.8)
+      }
+    }
+
+    // Create platforms with modern style
     this.platforms = this.physics.add.staticGroup()
     this.levelData.platforms.forEach((platform) => {
+      const cx = platform.x + platform.width / 2
+      const cy = platform.y + platform.height / 2
+
+      // Platform body (dark with subtle accent)
       const rect = this.add.rectangle(
-        platform.x + platform.width / 2,
-        platform.y + platform.height / 2,
+        cx, cy,
         platform.width,
         platform.height,
-        0x8B4513
+        0x1e293b
       )
+      rect.setStrokeStyle(1, accent, 0.2)
       this.physics.add.existing(rect, true)
       this.platforms.add(rect)
+
+      // Top accent edge (glowing line on top of platform)
+      const edge = this.add.rectangle(
+        cx, platform.y + 1,
+        platform.width, 2,
+        accent, 0.5
+      )
+      edge.setDepth(1)
     })
 
     // Create player
@@ -90,7 +128,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Create goal
-    this.createGoal()
+    this.createGoal(accent)
 
     // Setup collisions
     this.physics.add.collider(this.player, this.platforms)
@@ -122,12 +160,44 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, 800, 900)
     this.cameras.main.setBounds(0, 0, 800, 600)
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
+
+    // Fade in
+    this.cameras.main.fadeIn(400, 10, 10, 15)
   }
 
-  private createGoal(): void {
+  private createGoal(accent: number): void {
+    // Goal glow effect (background circle)
+    this.goalGlow = this.add.graphics()
+    this.goalGlow.fillStyle(accent, 0.15)
+    this.goalGlow.fillCircle(this.levelData.goalX, this.levelData.goalY, 24)
+    this.goalGlow.setDepth(0)
+
+    this.tweens.add({
+      targets: this.goalGlow,
+      alpha: { from: 0.4, to: 1 },
+      scaleX: { from: 0.9, to: 1.2 },
+      scaleY: { from: 0.9, to: 1.2 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    // Goal sprite (diamond shape)
     const graphics = this.make.graphics({ x: 0, y: 0 }, false)
-    graphics.fillStyle(0xFFD700, 1)
-    graphics.fillCircle(16, 16, 12)
+
+    // Outer glow
+    graphics.fillStyle(accent, 0.3)
+    graphics.fillCircle(16, 16, 14)
+
+    // Inner bright core
+    graphics.fillStyle(0xffffff, 0.9)
+    graphics.fillCircle(16, 16, 6)
+
+    // Middle ring
+    graphics.lineStyle(2, accent, 0.8)
+    graphics.strokeCircle(16, 16, 10)
+
     graphics.generateTexture('goal', 32, 32)
     graphics.destroy()
 
@@ -138,11 +208,10 @@ export class GameScene extends Phaser.Scene {
     )
     this.goal.setImmovable(true)
 
-    // Add tween for visual effect
     this.tweens.add({
       targets: this.goal,
       angle: 360,
-      duration: 2000,
+      duration: 3000,
       repeat: -1,
     })
   }
@@ -194,7 +263,6 @@ export class GameScene extends Phaser.Scene {
     if (isDead) {
       this.gameOver()
     } else {
-      // Respawn player at start position
       playerSprite.setPosition(
         this.levelData.playerStartX,
         this.levelData.playerStartY
@@ -210,18 +278,15 @@ export class GameScene extends Phaser.Scene {
 
     this.isLevelTransitioning = true
     this.goal.disableBody(true, true)
-
-    // Disable player control
     this.player.setActive(false)
 
     if (this.currentLevel < this.levels.length) {
-      // Load next level
+      this.cameras.main.fadeOut(400, 10, 10, 15)
       this.time.delayedCall(500, () => {
         this.player.resetLives()
         this.loadLevel(this.currentLevel + 1)
       })
     } else {
-      // Game completed
       this.showVictory()
     }
   }
@@ -520,14 +585,13 @@ export class GameScene extends Phaser.Scene {
       this.player.update()
     }
 
-    // Update enemies
     this.enemies?.children.entries.forEach((enemy) => {
       if (enemy.active) {
         ;(enemy as Enemy).update()
       }
     })
 
-    // Check for falling off the world
+    // Check for falling
     if (this.player && this.player.y > 650) {
       const isDead = this.player.takeDamage()
       this.hud.updateLives(this.player.getLives())
