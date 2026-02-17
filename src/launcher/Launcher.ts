@@ -4,6 +4,7 @@ export class Launcher {
   private container: HTMLElement
   private wrapper: HTMLElement | null = null
   private currentGame: GameModule | null = null
+  private currentMeta: GameMeta | null = null
   private onBack: () => void
 
   constructor(container: HTMLElement, onBack: () => void) {
@@ -32,6 +33,7 @@ export class Launcher {
     // Load the game module
     const mod = await meta.load()
     this.currentGame = mod.default
+    this.currentMeta = meta
 
     // Show start screen (Hub-style) with Start button
     this.showStartScreen(meta)
@@ -116,7 +118,20 @@ export class Launcher {
     gameContainer.className = 'launcher-game'
     this.wrapper.appendChild(gameContainer)
 
-    this.currentGame.launch(gameContainer)
+    this.currentGame.launch(gameContainer, {
+      onTitleRequest: () => this.returnToStartScreen(),
+    })
+  }
+
+  private returnToStartScreen(): void {
+    if (!this.wrapper || !this.currentMeta) return
+    if (this.currentGame) {
+      this.currentGame.destroy()
+      // Keep this.currentGame so スタート can call launch() again
+    }
+    const gameEl = this.wrapper.querySelector('.launcher-game')
+    if (gameEl) gameEl.remove()
+    this.showStartScreen(this.currentMeta)
   }
 
   close(): void {
@@ -124,6 +139,7 @@ export class Launcher {
       this.currentGame.destroy()
       this.currentGame = null
     }
+    this.currentMeta = null
     if (this.wrapper) {
       this.wrapper.innerHTML = ''
       this.wrapper = null

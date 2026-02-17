@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import type { GameModule } from '../../types'
+import type { GameModule, GameLaunchOptions } from '../../types'
 import { BootScene } from './scenes/BootScene'
 import { MenuScene } from './scenes/MenuScene'
 import { GameScene } from './scenes/GameScene'
@@ -8,7 +8,7 @@ import { GameConfig } from './config'
 let game: Phaser.Game | null = null
 
 const platformerGame: GameModule = {
-  launch(container: HTMLElement) {
+  launch(container: HTMLElement, options?: GameLaunchOptions) {
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       width: GameConfig.width,
@@ -25,6 +25,7 @@ const platformerGame: GameModule = {
     }
 
     game = new Phaser.Game(config)
+    game.registry.set('onTitleRequest', options?.onTitleRequest)
   },
 
   destroy() {
