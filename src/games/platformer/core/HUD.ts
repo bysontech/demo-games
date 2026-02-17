@@ -34,23 +34,49 @@ export class HUD {
     this.livesText.setScrollFactor(0)
     this.livesText.setDepth(1000)
 
-    // Create pause button (right-aligned so it stays inside 800px canvas)
-    this.pauseButton = scene.add.text(785, 16, 'ポーズ', {
-      fontSize: '18px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 10, y: 5 },
-      stroke: '#000000',
-      strokeThickness: 2,
+    // Create pause button (Hub/Launcher style - glass card)
+    const pauseBtnBg = scene.add.graphics()
+    pauseBtnBg.fillStyle(0xffffff, 0.06)
+    pauseBtnBg.fillRoundedRect(700, 10, 90, 36, 10)
+    pauseBtnBg.lineStyle(1, 0xffffff, 0.1)
+    pauseBtnBg.strokeRoundedRect(700, 10, 90, 36, 10)
+    pauseBtnBg.setScrollFactor(0)
+    pauseBtnBg.setDepth(1000)
+    
+    this.pauseButton = scene.add.text(745, 28, 'ポーズ', {
+      fontSize: '14px',
+      color: '#f1f5f9',
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontStyle: 'bold',
     })
-    this.pauseButton.setOrigin(1, 0)
+    this.pauseButton.setOrigin(0.5)
     this.pauseButton.setScrollFactor(0)
-    this.pauseButton.setDepth(1000)
-    this.pauseButton.setInteractive({ useHandCursor: true })
-    this.pauseButton.on('pointerup', () => {
+    this.pauseButton.setDepth(1001)
+    
+    const pauseHitArea = scene.add.zone(745, 28, 90, 36)
+    pauseHitArea.setInteractive({ useHandCursor: true })
+    pauseHitArea.setScrollFactor(0)
+    pauseHitArea.setDepth(1001)
+    pauseHitArea.on('pointerup', () => {
       if (this.onPauseClick) {
         this.onPauseClick()
       }
+    })
+    pauseHitArea.on('pointerover', () => {
+      pauseBtnBg.clear()
+      pauseBtnBg.fillStyle(0xffffff, 0.1)
+      pauseBtnBg.fillRoundedRect(700, 10, 90, 36, 10)
+      pauseBtnBg.lineStyle(1, 0xffffff, 0.15)
+      pauseBtnBg.strokeRoundedRect(700, 10, 90, 36, 10)
+      this.pauseButton.setScale(1.05)
+    })
+    pauseHitArea.on('pointerout', () => {
+      pauseBtnBg.clear()
+      pauseBtnBg.fillStyle(0xffffff, 0.06)
+      pauseBtnBg.fillRoundedRect(700, 10, 90, 36, 10)
+      pauseBtnBg.lineStyle(1, 0xffffff, 0.1)
+      pauseBtnBg.strokeRoundedRect(700, 10, 90, 36, 10)
+      this.pauseButton.setScale(1)
     })
     this.onPauseClick = () => {}
   }

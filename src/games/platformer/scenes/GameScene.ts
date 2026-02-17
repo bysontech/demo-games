@@ -465,15 +465,25 @@ export class GameScene extends Phaser.Scene {
 
   private pauseGame(): void {
     this.isPaused = true
-    // Don't pause scene to allow button interactions
+    // Pause physics world to stop all movement
+    this.physics.world.pause()
+    // Disable player input
+    if (this.player) {
+      this.player.setActive(false)
+    }
     this.showPauseMenu()
   }
 
   private resumeGame(): void {
     this.isPaused = false
+    // Resume physics world
+    this.physics.world.resume()
+    // Re-enable player
+    if (this.player) {
+      this.player.setActive(true)
+    }
     this.pauseMenuObjects.forEach(obj => obj.destroy())
     this.pauseMenuObjects = []
-    // Scene is not paused, so no need to resume
   }
 
   private showPauseMenu(): void {
@@ -481,94 +491,133 @@ export class GameScene extends Phaser.Scene {
     this.pauseMenuObjects.forEach(obj => obj.destroy())
     this.pauseMenuObjects = []
 
-    // Create semi-transparent background
-    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
+    const accent = LEVEL_ACCENTS[this.currentLevel - 1]
+
+    // Semi-transparent background overlay
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.6)
     bg.setScrollFactor(0)
     bg.setDepth(1999)
 
-    // Create title text
-    const titleText = this.add.text(400, 200, 'ポーズ', {
-      fontSize: '48px',
-      color: '#ffffff',
-      align: 'center',
-      stroke: '#000000',
-      strokeThickness: 6,
+    // Central card (Hub/Launcher style)
+    const cardW = 420
+    const cardH = 380
+    const cardX = 400 - cardW / 2
+    const cardY = 180
+
+    const cardBg = this.add.graphics()
+    cardBg.fillStyle(0xffffff, 0.06)
+    cardBg.fillRoundedRect(cardX, cardY, cardW, cardH, 16)
+    cardBg.lineStyle(1, 0xffffff, 0.1)
+    cardBg.strokeRoundedRect(cardX, cardY, cardW, cardH, 16)
+    cardBg.setScrollFactor(0)
+    cardBg.setDepth(2000)
+
+    // Subtle glow effect
+    const glow = this.add.graphics()
+    glow.fillStyle(accent, 0.08)
+    glow.fillRoundedRect(cardX - 2, cardY - 2, cardW + 4, cardH + 4, 18)
+    glow.setScrollFactor(0)
+    glow.setDepth(1999)
+
+    // Title
+    const titleText = this.add.text(400, cardY + 50, 'ポーズ', {
+      fontSize: '32px',
+      color: '#f1f5f9',
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontStyle: 'bold',
     })
-    titleText.setOrigin(0.5)
+    titleText.setOrigin(0.5, 0)
     titleText.setScrollFactor(0)
-    titleText.setDepth(2000)
+    titleText.setDepth(2001)
 
-    // Create resume button
-    const resumeButton = this.add.text(400, 300, 'ゲームを再開', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    resumeButton.setOrigin(0.5)
-    resumeButton.setScrollFactor(0)
-    resumeButton.setDepth(2000)
-    resumeButton.setInteractive({ useHandCursor: true })
-    resumeButton.on('pointerup', () => {
-      this.resumeGame()
-    })
-    resumeButton.on('pointerover', () => {
-      resumeButton.setBackgroundColor('#555555')
-    })
-    resumeButton.on('pointerout', () => {
-      resumeButton.setBackgroundColor('#333333')
-    })
+    // Helper to create Hub-style button
+    const createButton = (
+      y: number,
+      text: string,
+      onClick: () => void,
+      isPrimary: boolean = false
+    ) => {
+      const btnW = 280
+      const btnH = 48
+      const btnX = 400 - btnW / 2
+      const btnY = y
 
-    // Create restart button
-    const restartButton = this.add.text(400, 370, 'リスタート', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    restartButton.setOrigin(0.5)
-    restartButton.setScrollFactor(0)
-    restartButton.setDepth(2000)
-    restartButton.setInteractive({ useHandCursor: true })
-    restartButton.on('pointerup', () => {
-      this.restartGame()
-    })
-    restartButton.on('pointerover', () => {
-      restartButton.setBackgroundColor('#555555')
-    })
-    restartButton.on('pointerout', () => {
-      restartButton.setBackgroundColor('#333333')
-    })
+      const btnBg = this.add.graphics()
+      if (isPrimary) {
+        btnBg.fillStyle(accent, 0.9)
+      } else {
+        btnBg.fillStyle(0xffffff, 0.06)
+      }
+      btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+      if (!isPrimary) {
+        btnBg.lineStyle(1, 0xffffff, 0.1)
+        btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 12)
+      }
+      btnBg.setScrollFactor(0)
+      btnBg.setDepth(2001)
 
-    // Create title button
-    const titleButton = this.add.text(400, 440, 'タイトルに戻る', {
-      fontSize: '32px',
-      color: '#ffffff',
-      backgroundColor: '#333333',
-      padding: { x: 20, y: 10 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    })
-    titleButton.setOrigin(0.5)
-    titleButton.setScrollFactor(0)
-    titleButton.setDepth(2000)
-    titleButton.setInteractive({ useHandCursor: true })
-    titleButton.on('pointerup', () => {
-      this.goToTitle()
-    })
-    titleButton.on('pointerover', () => {
-      titleButton.setBackgroundColor('#555555')
-    })
-    titleButton.on('pointerout', () => {
-      titleButton.setBackgroundColor('#333333')
-    })
+      const btnText = this.add.text(400, btnY + btnH / 2, text, {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontStyle: 'bold',
+      })
+      btnText.setOrigin(0.5)
+      btnText.setScrollFactor(0)
+      btnText.setDepth(2002)
+
+      const hitArea = this.add.zone(400, btnY + btnH / 2, btnW, btnH)
+      hitArea.setInteractive({ useHandCursor: true })
+      hitArea.setScrollFactor(0)
+      hitArea.setDepth(2002)
+      hitArea.on('pointerup', onClick)
+      hitArea.on('pointerover', () => {
+        btnBg.clear()
+        if (isPrimary) {
+          btnBg.fillStyle(accent, 1)
+        } else {
+          btnBg.fillStyle(0xffffff, 0.1)
+        }
+        btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+        if (!isPrimary) {
+          btnBg.lineStyle(1, 0xffffff, 0.15)
+          btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 12)
+        }
+        btnText.setScale(1.02)
+      })
+      hitArea.on('pointerout', () => {
+        btnBg.clear()
+        if (isPrimary) {
+          btnBg.fillStyle(accent, 0.9)
+        } else {
+          btnBg.fillStyle(0xffffff, 0.06)
+        }
+        btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+        if (!isPrimary) {
+          btnBg.lineStyle(1, 0xffffff, 0.1)
+          btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 12)
+        }
+        btnText.setScale(1)
+      })
+
+      return [btnBg, btnText, hitArea]
+    }
+
+    // Buttons
+    const resumeBtn = createButton(cardY + 140, 'ゲームを再開', () => this.resumeGame(), true)
+    const restartBtn = createButton(cardY + 210, 'リスタート', () => this.restartGame())
+    const titleBtn = createButton(cardY + 280, 'タイトルに戻る', () => this.goToTitle())
 
     // Store references for cleanup
-    this.pauseMenuObjects = [bg, titleText, resumeButton, restartButton, titleButton]
+    this.pauseMenuObjects = [
+      bg,
+      glow,
+      cardBg,
+      titleText,
+      ...resumeBtn,
+      ...restartBtn,
+      ...titleBtn,
+    ]
   }
 
   private restartGame(): void {
