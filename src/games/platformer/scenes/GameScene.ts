@@ -580,11 +580,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private goToTitle(): void {
-    // Clear refs before leaving so we don't reuse destroyed objects when GameScene is started again
     this.enemies = null
     this.platforms = null
     this.hud = null
-    this.scene.start('MenuScene')
+    const onTitleRequest = this.registry.get('onTitleRequest') as (() => void) | undefined
+    if (onTitleRequest) {
+      onTitleRequest()
+    } else {
+      this.scene.start('MenuScene')
+    }
   }
 
   shutdown(): void {
