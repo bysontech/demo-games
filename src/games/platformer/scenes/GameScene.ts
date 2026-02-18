@@ -31,6 +31,7 @@ export class GameScene extends Phaser.Scene {
   private gameOverMenuObjects: Phaser.GameObjects.GameObject[] = []
   private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
   private bgElements: Phaser.GameObjects.Graphics | null = null
+  private platformEdgeGraphics: Phaser.GameObjects.Graphics | null = null
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -57,6 +58,10 @@ export class GameScene extends Phaser.Scene {
     if (this.bgElements) {
       this.bgElements.destroy()
       this.bgElements = null
+    }
+    if (this.platformEdgeGraphics) {
+      this.platformEdgeGraphics.destroy()
+      this.platformEdgeGraphics = null
     }
 
     this.isLevelTransitioning = false
@@ -86,28 +91,26 @@ export class GameScene extends Phaser.Scene {
 
     // Create platforms with modern style
     this.platforms = this.physics.add.staticGroup()
+    this.platformEdgeGraphics = this.add.graphics()
+    this.platformEdgeGraphics.setDepth(1)
+
     this.levelData.platforms.forEach((platform) => {
       const cx = platform.x + platform.width / 2
       const cy = platform.y + platform.height / 2
 
-      // Platform body (dark with subtle accent)
+      // Platform body (no stroke to avoid extra lines at segment boundaries)
       const rect = this.add.rectangle(
         cx, cy,
         platform.width,
         platform.height,
         0x1e293b
       )
-      rect.setStrokeStyle(1, accent, 0.2)
       this.physics.add.existing(rect, true)
       this.platforms!.add(rect)
 
-      // Top accent edge (glowing line on top of platform)
-      const edge = this.add.rectangle(
-        cx, platform.y + 1,
-        platform.width, 2,
-        accent, 0.5
-      )
-      edge.setDepth(1)
+      // Top accent: draw exactly platform.x .. platform.x+width, no extension
+      this.platformEdgeGraphics!.fillStyle(accent, 0.5)
+      this.platformEdgeGraphics!.fillRect(platform.x, platform.y, platform.width, 2)
     })
 
     // Create player
