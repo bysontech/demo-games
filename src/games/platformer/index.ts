@@ -26,6 +26,7 @@ const platformerGame: GameModule = {
 
     game = new Phaser.Game(config)
     game.registry.set('onTitleRequest', options?.onTitleRequest)
+    game.registry.set('controlScheme', options?.controlScheme ?? 1)
   },
 
   destroy() {

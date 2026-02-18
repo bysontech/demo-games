@@ -297,7 +297,11 @@ export class GameScene extends Phaser.Scene {
 
   private gameOver(): void {
     this.isGameOver = true
-    // Don't pause scene to allow button interactions
+    // Stop movement like pause: physics + player
+    this.physics.world.pause()
+    if (this.player) {
+      this.player.setActive(false)
+    }
     this.showGameOverMenu()
   }
 
