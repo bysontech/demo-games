@@ -1,10 +1,16 @@
-import type { GameMeta, GameModule } from '../types'
+import type { GameMeta, GameModule, ControlScheme } from '../types'
+
+const HOWTO_TEXTS: Record<ControlScheme, { leftRight: string; jump: string }> = {
+  1: { leftRight: '← → : 左右移動', jump: 'スペース / ↑ : ジャンプ' },
+  2: { leftRight: 'A / D : 左右移動', jump: 'スペース / W : ジャンプ' },
+}
 
 export class Launcher {
   private container: HTMLElement
   private wrapper: HTMLElement | null = null
   private currentGame: GameModule | null = null
   private currentMeta: GameMeta | null = null
+  private currentControlScheme: ControlScheme = 1
   private onBack: () => void
 
   constructor(container: HTMLElement, onBack: () => void) {
@@ -78,8 +84,12 @@ export class Launcher {
             </div>
             <div class="launcher-start-howto">
               <p class="launcher-start-howto-title">操作方法:</p>
-              <p class="launcher-start-howto-line">← → : 左右移動</p>
-              <p class="launcher-start-howto-line">スペース : ジャンプ</p>
+              <div class="launcher-start-howto-toggle">
+                <button type="button" class="launcher-howto-btn launcher-howto-btn--active" data-scheme="1">操作1</button>
+                <button type="button" class="launcher-howto-btn" data-scheme="2">操作2</button>
+              </div>
+              <p class="launcher-start-howto-line" id="launcher-howto-move">← → : 左右移動</p>
+              <p class="launcher-start-howto-line" id="launcher-howto-jump">スペース / ↑ : ジャンプ</p>
             </div>
             <div class="launcher-start-stages">
               <span class="launcher-start-stages-text">5 STAGES</span>
@@ -103,6 +113,25 @@ export class Launcher {
     `
     this.wrapper.appendChild(content)
 
+    const moveLine = this.wrapper.querySelector('#launcher-howto-move')!
+    const jumpLine = this.wrapper.querySelector('#launcher-howto-jump')!
+
+    const updateHowtoText = (scheme: ControlScheme) => {
+      this.currentControlScheme = scheme
+      const t = HOWTO_TEXTS[scheme]
+      moveLine.textContent = t.leftRight
+      jumpLine.textContent = t.jump
+      this.wrapper!.querySelectorAll('.launcher-howto-btn').forEach((btn) => {
+        btn.classList.toggle('launcher-howto-btn--active', (btn as HTMLElement).dataset.scheme === String(scheme))
+      })
+    }
+
+    this.wrapper.querySelectorAll('.launcher-howto-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        updateHowtoText(Number((btn as HTMLElement).dataset.scheme) as ControlScheme)
+      })
+    })
+
     const startBtn = this.wrapper.querySelector('#launcher-start-btn')!
     startBtn.addEventListener('click', () => this.startGame())
   }
@@ -120,6 +149,7 @@ export class Launcher {
 
     this.currentGame.launch(gameContainer, {
       onTitleRequest: () => this.returnToStartScreen(),
+      controlScheme: this.currentControlScheme,
     })
   }
 
@@ -323,6 +353,35 @@ const launcherStyles = `
     color: #e2e8f0;
     margin: 0 0 0.35rem;
     font-weight: 600;
+  }
+
+  .launcher-start-howto-toggle {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 0.4rem 0 0.5rem;
+  }
+
+  .launcher-howto-btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+
+  .launcher-howto-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+  }
+
+  .launcher-howto-btn--active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--card-color, #6366f1);
+    color: #e2e8f0;
   }
 
   .launcher-start-howto-line {

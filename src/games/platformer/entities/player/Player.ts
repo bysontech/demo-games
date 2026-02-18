@@ -1,9 +1,11 @@
 import Phaser from 'phaser'
+import type { ControlScheme } from '../../../../types'
 import { GameConfig } from '../../config'
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  private cursors: Phaser.Types.Input.Keyboard.CursorKeys
-  private jumpKey: Phaser.Input.Keyboard.Key
+  private leftKey: Phaser.Input.Keyboard.Key
+  private rightKey: Phaser.Input.Keyboard.Key
+  private jumpKeys: Phaser.Input.Keyboard.Key[]
   private isJumping: boolean = false
   private lives: number = GameConfig.lives
 
@@ -19,8 +21,25 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.createVisual()
 
-    this.cursors = scene.input.keyboard!.createCursorKeys()
-    this.jumpKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+    const scheme: ControlScheme = scene.registry.get('controlScheme') ?? 1
+    const kb = scene.input.keyboard!
+
+    if (scheme === 1) {
+      const cursors = kb.createCursorKeys()
+      this.leftKey = cursors.left!
+      this.rightKey = cursors.right!
+      this.jumpKeys = [
+        kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      ]
+    } else {
+      this.leftKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.A)
+      this.rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+      this.jumpKeys = [
+        kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+        kb.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      ]
+    }
   }
 
   private createVisual(): void {
@@ -56,17 +75,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(): void {
-    if (this.cursors.left.isDown) {
+    if (this.leftKey.isDown) {
       this.setVelocityX(-GameConfig.playerSpeed)
-    } else if (this.cursors.right.isDown) {
+    } else if (this.rightKey.isDown) {
       this.setVelocityX(GameConfig.playerSpeed)
     } else {
       this.setVelocityX(0)
     }
 
     const onGround = this.body!.touching.down
+    const jumpPressed = this.jumpKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))
 
-    if (Phaser.Input.Keyboard.JustDown(this.jumpKey) && onGround) {
+    if (jumpPressed && onGround) {
       this.setVelocityY(GameConfig.playerJumpVelocity)
       this.isJumping = true
     }
