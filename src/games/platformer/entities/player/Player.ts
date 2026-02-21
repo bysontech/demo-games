@@ -1,10 +1,9 @@
 import Phaser from 'phaser'
-import type { ControlScheme } from '../../../../types'
 import { GameConfig } from '../../config'
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  private leftKey: Phaser.Input.Keyboard.Key
-  private rightKey: Phaser.Input.Keyboard.Key
+  private leftKeys: Phaser.Input.Keyboard.Key[]
+  private rightKeys: Phaser.Input.Keyboard.Key[]
   private jumpKeys: Phaser.Input.Keyboard.Key[]
   private isJumping: boolean = false
   private lives: number = GameConfig.lives
@@ -21,25 +20,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.createVisual()
 
-    const scheme: ControlScheme = scene.registry.get('controlScheme') ?? 1
     const kb = scene.input.keyboard!
-
-    if (scheme === 1) {
-      const cursors = kb.createCursorKeys()
-      this.leftKey = cursors.left!
-      this.rightKey = cursors.right!
-      this.jumpKeys = [
-        kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-        kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      ]
-    } else {
-      this.leftKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.A)
-      this.rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-      this.jumpKeys = [
-        kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-        kb.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      ]
-    }
+    const cursors = kb.createCursorKeys()
+    this.leftKeys = [cursors.left!, kb.addKey(Phaser.Input.Keyboard.KeyCodes.A)]
+    this.rightKeys = [cursors.right!, kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)]
+    this.jumpKeys = [
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+    ]
   }
 
   private createVisual(): void {
@@ -75,9 +64,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(): void {
-    if (this.leftKey.isDown) {
+    const leftDown = this.leftKeys.some((k) => k.isDown)
+    const rightDown = this.rightKeys.some((k) => k.isDown)
+    if (leftDown) {
       this.setVelocityX(-GameConfig.playerSpeed)
-    } else if (this.rightKey.isDown) {
+    } else if (rightDown) {
       this.setVelocityX(GameConfig.playerSpeed)
     } else {
       this.setVelocityX(0)

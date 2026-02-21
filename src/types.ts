@@ -1,8 +1,5 @@
-export type ControlScheme = 1 | 2
-
 export interface GameLaunchOptions {
   onTitleRequest?: () => void
-  controlScheme?: ControlScheme
 }
 
 export interface GameModule {
