@@ -14,6 +14,14 @@ const LEVEL_ACCENTS: number[] = [
   0x6366f1, 0x10b981, 0xf43f5e, 0xa855f7, 0xef4444,
 ]
 
+const GAME_OVER_HINTS: Record<number, string> = {
+  1: 'がんばれ！',
+  2: '敵の動きをよく見て、タイミングを合わせよう！',
+  3: '時間をかければチャンスあり！？',
+  4: '見えないところに近道あり！？',
+  5: '敵と同じ動きをしてみよう！！',
+}
+
 export class GameScene extends Phaser.Scene {
   private player!: Player
   private enemies: Phaser.Physics.Arcade.Group | null = null
@@ -39,6 +47,15 @@ export class GameScene extends Phaser.Scene {
   private static readonly LEVEL3_FALL_SPEED = 400
   private static readonly LEVEL3_GOAL_PLATFORM_CX = 750
   private static readonly LEVEL3_GOAL_PLATFORM_CY = 250
+  private level5RightPressCount: number = 0
+  private static readonly LEVEL5_GOAL_PLATFORM_X = 600
+  private static readonly LEVEL5_GOAL_PLATFORM_Y = 200
+  private static readonly LEVEL5_GOAL_PLATFORM_WIDTH = 120
+  private menuSelectedIndex: number = 0
+  private gameOverMenuButtonTexts: Phaser.GameObjects.Text[] = []
+  private victoryMenuButtonTexts: Phaser.GameObjects.Text[] = []
+  private pauseMenuButtonTexts: Phaser.GameObjects.Text[] = []
+  private pauseMenuActions: (() => void)[] = []
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -83,6 +100,9 @@ export class GameScene extends Phaser.Scene {
       this.goalPlatformReturnTimer = null
     }
     this.goalPlatformFalling = false
+    if (levelNumber === 5) {
+      this.level5RightPressCount = 0
+    }
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
@@ -308,6 +328,41 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private isLevel5GoalPlatformEnemy(enemy: Phaser.GameObjects.GameObject): boolean {
+    const x = (enemy as Phaser.Physics.Arcade.Sprite).x
+    const y = (enemy as Phaser.Physics.Arcade.Sprite).y
+    return (
+      x >= GameScene.LEVEL5_GOAL_PLATFORM_X &&
+      x <= GameScene.LEVEL5_GOAL_PLATFORM_X + GameScene.LEVEL5_GOAL_PLATFORM_WIDTH &&
+      y >= GameScene.LEVEL5_GOAL_PLATFORM_Y - 50 &&
+      y <= GameScene.LEVEL5_GOAL_PLATFORM_Y + 30
+    )
+  }
+
+  private updateLevel5RightPressRemoveEnemy(): void {
+    const kb = this.input.keyboard
+    if (!kb) return
+    const rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT)
+    const dKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+    if (Phaser.Input.Keyboard.JustDown(rightKey) || Phaser.Input.Keyboard.JustDown(dKey)) {
+      this.level5RightPressCount += 1
+      if (this.level5RightPressCount >= 10) {
+        this.level5RightPressCount = 0
+        const candidates = this.enemies!
+          .getChildren()
+          .filter(
+            (e: Phaser.GameObjects.GameObject) =>
+              e.active && !this.isLevel5GoalPlatformEnemy(e)
+          ) as Enemy[]
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => a.x - b.x)
+          const toRemove = candidates[0]
+          toRemove.destroy()
+        }
+      }
+    }
+  }
+
   private getEnemyBounds(
     enemyX: number,
     enemyY: number
@@ -415,8 +470,23 @@ export class GameScene extends Phaser.Scene {
     titleText.setScrollFactor(0)
     titleText.setDepth(2000)
 
+    const hintText = this.add.text(
+      400,
+      270,
+      GAME_OVER_HINTS[this.currentLevel] ?? 'がんばれ！',
+      {
+        fontSize: '20px',
+        color: '#e2e8f0',
+        align: 'center',
+        wordWrap: { width: 520 },
+      }
+    )
+    hintText.setOrigin(0.5)
+    hintText.setScrollFactor(0)
+    hintText.setDepth(2000)
+
     // Create restart button
-    const restartButton = this.add.text(400, 350, 'リスタート', {
+    const restartButton = this.add.text(400, 360, 'リスタート', {
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#333333',
@@ -439,7 +509,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Create title button
-    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
+    const titleButton = this.add.text(400, 430, 'タイトルに戻る', {
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#333333',
@@ -461,8 +531,17 @@ export class GameScene extends Phaser.Scene {
       titleButton.setBackgroundColor('#333333')
     })
 
-    // Store references for cleanup
-    this.gameOverMenuObjects = [bg, titleText, restartButton, titleButton]
+    // Store references for cleanup and keyboard menu
+    this.gameOverMenuObjects = [bg, titleText, hintText, restartButton, titleButton]
+    this.gameOverMenuButtonTexts = [restartButton, titleButton]
+    this.menuSelectedIndex = 0
+    this.updateGameOverMenuSelection()
+  }
+
+  private updateGameOverMenuSelection(): void {
+    this.gameOverMenuButtonTexts.forEach((btn, i) => {
+      btn.setBackgroundColor(i === this.menuSelectedIndex ? '#555555' : '#333333')
+    })
   }
 
   private showVictory(): void {
@@ -539,8 +618,17 @@ export class GameScene extends Phaser.Scene {
       titleButton.setBackgroundColor('#333333')
     })
 
-    // Store references for cleanup
+    // Store references for cleanup and keyboard menu
     this.victoryMenuObjects = [bg, titleText, restartButton, titleButton]
+    this.victoryMenuButtonTexts = [restartButton, titleButton]
+    this.menuSelectedIndex = 0
+    this.updateVictoryMenuSelection()
+  }
+
+  private updateVictoryMenuSelection(): void {
+    this.victoryMenuButtonTexts.forEach((btn, i) => {
+      btn.setBackgroundColor(i === this.menuSelectedIndex ? '#555555' : '#333333')
+    })
   }
 
   private togglePause(): void {
@@ -700,6 +788,19 @@ export class GameScene extends Phaser.Scene {
     const restartBtn = createButton(cardY + 210, 'リスタート', () => this.restartGame())
     const titleBtn = createButton(cardY + 280, 'タイトルに戻る', () => this.goToTitle())
 
+    this.pauseMenuButtonTexts = [
+      resumeBtn[1] as Phaser.GameObjects.Text,
+      restartBtn[1] as Phaser.GameObjects.Text,
+      titleBtn[1] as Phaser.GameObjects.Text,
+    ]
+    this.pauseMenuActions = [
+      () => this.resumeGame(),
+      () => this.restartGame(),
+      () => this.goToTitle(),
+    ]
+    this.menuSelectedIndex = 0
+    this.updatePauseMenuSelection()
+
     // Store references for cleanup
     this.pauseMenuObjects = [
       bg,
@@ -710,6 +811,61 @@ export class GameScene extends Phaser.Scene {
       ...restartBtn,
       ...titleBtn,
     ]
+  }
+
+  private updatePauseMenuSelection(): void {
+    this.pauseMenuButtonTexts.forEach((btn, i) => {
+      btn.setScale(i === this.menuSelectedIndex ? 1.02 : 1)
+    })
+  }
+
+  private handleMenuKeys(
+    count: number,
+    buttonTexts: Phaser.GameObjects.Text[],
+    updateVisual: () => void,
+    actions: (() => void)[]
+  ): void {
+    if (buttonTexts.length !== count || !this.input.keyboard) return
+    const kb = this.input.keyboard
+    const up = kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP)
+    const down = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)
+    const w = kb.addKey(Phaser.Input.Keyboard.KeyCodes.W)
+    const s = kb.addKey(Phaser.Input.Keyboard.KeyCodes.S)
+    const enter = kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+    const space = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+    if (Phaser.Input.Keyboard.JustDown(up) || Phaser.Input.Keyboard.JustDown(w)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex - 1 + count) % count
+      updateVisual()
+    }
+    if (Phaser.Input.Keyboard.JustDown(down) || Phaser.Input.Keyboard.JustDown(s)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex + 1) % count
+      updateVisual()
+    }
+    if (Phaser.Input.Keyboard.JustDown(enter) || Phaser.Input.Keyboard.JustDown(space)) {
+      actions[this.menuSelectedIndex]?.()
+    }
+  }
+
+  private handlePauseMenuKeys(): void {
+    if (this.pauseMenuButtonTexts.length !== 3 || !this.input.keyboard) return
+    const kb = this.input.keyboard
+    const up = kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP)
+    const down = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)
+    const w = kb.addKey(Phaser.Input.Keyboard.KeyCodes.W)
+    const s = kb.addKey(Phaser.Input.Keyboard.KeyCodes.S)
+    const enter = kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+    const space = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+    if (Phaser.Input.Keyboard.JustDown(up) || Phaser.Input.Keyboard.JustDown(w)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex - 1 + 3) % 3
+      this.updatePauseMenuSelection()
+    }
+    if (Phaser.Input.Keyboard.JustDown(down) || Phaser.Input.Keyboard.JustDown(s)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex + 1) % 3
+      this.updatePauseMenuSelection()
+    }
+    if (Phaser.Input.Keyboard.JustDown(enter) || Phaser.Input.Keyboard.JustDown(space)) {
+      this.pauseMenuActions[this.menuSelectedIndex]?.()
+    }
   }
 
   private restartGame(): void {
@@ -740,7 +896,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(): void {
-    if (this.isPaused || this.isGameOver || this.isVictory) {
+    if (this.isGameOver) {
+      this.handleMenuKeys(
+        2,
+        this.gameOverMenuButtonTexts,
+        () => this.updateGameOverMenuSelection(),
+        [() => this.restartGame(), () => this.goToTitle()]
+      )
+      return
+    }
+    if (this.isVictory) {
+      this.handleMenuKeys(
+        2,
+        this.victoryMenuButtonTexts,
+        () => this.updateVictoryMenuSelection(),
+        [() => this.restartGame(), () => this.goToTitle()]
+      )
+      return
+    }
+    if (this.isPaused) {
+      this.handlePauseMenuKeys()
       return
     }
 
@@ -774,6 +949,10 @@ export class GameScene extends Phaser.Scene {
         this.player.setX(24)
         ;(this.player.body as Phaser.Physics.Arcade.Body).setVelocityX(0)
       }
+    }
+
+    if (this.currentLevel === 5 && this.enemies) {
+      this.updateLevel5RightPressRemoveEnemy()
     }
 
     // Check for falling

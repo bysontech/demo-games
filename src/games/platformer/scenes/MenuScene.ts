@@ -123,9 +123,9 @@ export class MenuScene extends Phaser.Scene {
       startBtn.setScale(1)
     })
 
-    // スペースキーでもスタート可能（併用）
-    this.input.keyboard!.on('keydown-SPACE', () => {
-      this.scene.start('GameScene')
-    })
+    // Enter / スペースキーでスタート
+    const startWithKey = () => this.scene.start('GameScene')
+    this.input.keyboard!.on('keydown-SPACE', startWithKey)
+    this.input.keyboard!.on('keydown-ENTER', startWithKey)
   }
 }
