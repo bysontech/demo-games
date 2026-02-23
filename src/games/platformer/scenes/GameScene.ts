@@ -32,6 +32,13 @@ export class GameScene extends Phaser.Scene {
   private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
   private bgElements: Phaser.GameObjects.Graphics | null = null
   private platformEdgeGraphics: Phaser.GameObjects.Graphics | null = null
+  private goalPlatform: Phaser.GameObjects.Rectangle | null = null
+  private goalPlatformFallTimer: Phaser.Time.TimerEvent | null = null
+  private goalPlatformReturnTimer: Phaser.Time.TimerEvent | null = null
+  private goalPlatformFalling: boolean = false
+  private static readonly LEVEL3_FALL_SPEED = 400
+  private static readonly LEVEL3_GOAL_PLATFORM_CX = 750
+  private static readonly LEVEL3_GOAL_PLATFORM_CY = 250
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -63,6 +70,19 @@ export class GameScene extends Phaser.Scene {
       this.platformEdgeGraphics.destroy()
       this.platformEdgeGraphics = null
     }
+    if (this.goalPlatform) {
+      this.goalPlatform.destroy()
+      this.goalPlatform = null
+    }
+    if (this.goalPlatformFallTimer) {
+      this.goalPlatformFallTimer.destroy()
+      this.goalPlatformFallTimer = null
+    }
+    if (this.goalPlatformReturnTimer) {
+      this.goalPlatformReturnTimer.destroy()
+      this.goalPlatformReturnTimer = null
+    }
+    this.goalPlatformFalling = false
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
@@ -94,7 +114,13 @@ export class GameScene extends Phaser.Scene {
     this.platformEdgeGraphics = this.add.graphics()
     this.platformEdgeGraphics.setDepth(1)
 
+    const isLevel3GoalPlatform = (p: { x: number; y: number }) =>
+      this.currentLevel === 3 && p.x === 700 && p.y === 240
+
     this.levelData.platforms.forEach((platform) => {
+      if (isLevel3GoalPlatform(platform)) {
+        return
+      }
       const cx = platform.x + platform.width / 2
       const cy = platform.y + platform.height / 2
 
@@ -137,9 +163,18 @@ export class GameScene extends Phaser.Scene {
     // Create goal
     this.createGoal(accent)
 
+    // Level 3: goal platform falls after 15s
+    if (this.currentLevel === 3) {
+      this.setupLevel3FallingGoalPlatform()
+    }
+
     // Setup collisions
     this.physics.add.collider(this.player, this.platforms)
     this.physics.add.collider(this.enemies, this.platforms)
+    if (this.goalPlatform) {
+      this.physics.add.collider(this.player, this.goalPlatform)
+      this.physics.add.collider(this.enemies, this.goalPlatform)
+    }
     this.physics.add.overlap(
       this.player,
       this.enemies,
@@ -220,6 +255,52 @@ export class GameScene extends Phaser.Scene {
       angle: 360,
       duration: 3000,
       repeat: -1,
+    })
+  }
+
+  private setupLevel3FallingGoalPlatform(): void {
+    const x = 700
+    const y = 240
+    const w = 100
+    const h = 20
+    const cx = x + w / 2
+    const cy = y + h / 2
+
+    const rect = this.add.rectangle(cx, cy, w, h, 0x1e293b)
+    this.physics.add.existing(rect, false)
+    const body = rect.body as Phaser.Physics.Arcade.Body
+    body.setAllowGravity(false)
+    body.setImmovable(true)
+    rect.setDepth(0)
+    this.goalPlatform = rect
+
+    this.goalPlatformFallTimer = this.time.delayedCall(15000, () => {
+      this.goalPlatformFallTimer = null
+      if (!this.goalPlatform || !this.goal.active) return
+      const platformBody = this.goalPlatform.body as Phaser.Physics.Arcade.Body
+      platformBody.setImmovable(false)
+      this.goal.setImmovable(false)
+      this.goalPlatformFalling = true
+
+      this.goalPlatformReturnTimer = this.time.delayedCall(10000, () => {
+        this.goalPlatformReturnTimer = null
+        if (!this.goalPlatform?.active || !this.goal?.active) return
+        this.goalPlatformFalling = false
+        const platformBody = this.goalPlatform!.body as Phaser.Physics.Arcade.Body
+        platformBody.setVelocity(0, 0)
+        platformBody.setImmovable(true)
+        this.goalPlatform!.setPosition(
+          GameScene.LEVEL3_GOAL_PLATFORM_CX,
+          GameScene.LEVEL3_GOAL_PLATFORM_CY
+        )
+        const goalBody = this.goal.body as Phaser.Physics.Arcade.Body
+        goalBody.setVelocity(0, 0)
+        this.goal.setImmovable(true)
+        this.goal.setPosition(
+          this.levelData.goalX,
+          this.levelData.goalY
+        )
+      })
     })
   }
 
@@ -668,6 +749,12 @@ export class GameScene extends Phaser.Scene {
         ;(enemy as Enemy).update()
       }
     })
+
+    if (this.goalPlatformFalling && this.goalPlatform?.active && this.goal?.active) {
+      const fallSpeed = GameScene.LEVEL3_FALL_SPEED
+      ;(this.goalPlatform.body as Phaser.Physics.Arcade.Body).setVelocityY(fallSpeed)
+      ;(this.goal.body as Phaser.Physics.Arcade.Body).setVelocityY(fallSpeed)
+    }
 
     // Check for falling
     if (this.player && this.player.y > 650) {
