@@ -198,8 +198,12 @@ export class GameScene extends Phaser.Scene {
     this.hud!.updateLevel(this.levelData.name)
     this.hud!.updateLives(this.player.getLives())
 
-    // Setup camera
-    this.physics.world.setBounds(0, 0, 800, 900)
+    // Setup camera and world bounds (level 4: extend left for off-screen wrap)
+    if (this.currentLevel === 4) {
+      this.physics.world.setBounds(-160, 0, 960, 900)
+    } else {
+      this.physics.world.setBounds(0, 0, 800, 900)
+    }
     this.cameras.main.setBounds(0, 0, 800, 600)
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
 
@@ -741,6 +745,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.player && this.player.active) {
+      this.registry.set(
+        'level4BlockLeft',
+        this.currentLevel === 4 &&
+          this.player.x <= 24 &&
+          this.player.y > 505
+      )
       this.player.update()
     }
 
@@ -754,6 +764,16 @@ export class GameScene extends Phaser.Scene {
       const fallSpeed = GameScene.LEVEL3_FALL_SPEED
       ;(this.goalPlatform.body as Phaser.Physics.Arcade.Body).setVelocityY(fallSpeed)
       ;(this.goal.body as Phaser.Physics.Arcade.Body).setVelocityY(fallSpeed)
+    }
+
+    if (this.currentLevel === 4 && this.player?.active) {
+      if (this.player.x < -40) {
+        this.player.setPosition(780, -30)
+        this.player.setVelocity(0, 400)
+      } else if (this.player.x < 0 && this.player.y > 505) {
+        this.player.setX(24)
+        ;(this.player.body as Phaser.Physics.Arcade.Body).setVelocityX(0)
+      }
     }
 
     // Check for falling
