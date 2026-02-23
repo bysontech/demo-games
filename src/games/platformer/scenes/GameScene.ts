@@ -39,6 +39,10 @@ export class GameScene extends Phaser.Scene {
   private static readonly LEVEL3_FALL_SPEED = 400
   private static readonly LEVEL3_GOAL_PLATFORM_CX = 750
   private static readonly LEVEL3_GOAL_PLATFORM_CY = 250
+  private level5RightPressCount: number = 0
+  private static readonly LEVEL5_GOAL_PLATFORM_X = 600
+  private static readonly LEVEL5_GOAL_PLATFORM_Y = 200
+  private static readonly LEVEL5_GOAL_PLATFORM_WIDTH = 120
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
 
@@ -83,6 +87,9 @@ export class GameScene extends Phaser.Scene {
       this.goalPlatformReturnTimer = null
     }
     this.goalPlatformFalling = false
+    if (levelNumber === 5) {
+      this.level5RightPressCount = 0
+    }
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
@@ -306,6 +313,41 @@ export class GameScene extends Phaser.Scene {
         )
       })
     })
+  }
+
+  private isLevel5GoalPlatformEnemy(enemy: Phaser.GameObjects.GameObject): boolean {
+    const x = (enemy as Phaser.Physics.Arcade.Sprite).x
+    const y = (enemy as Phaser.Physics.Arcade.Sprite).y
+    return (
+      x >= GameScene.LEVEL5_GOAL_PLATFORM_X &&
+      x <= GameScene.LEVEL5_GOAL_PLATFORM_X + GameScene.LEVEL5_GOAL_PLATFORM_WIDTH &&
+      y >= GameScene.LEVEL5_GOAL_PLATFORM_Y - 50 &&
+      y <= GameScene.LEVEL5_GOAL_PLATFORM_Y + 30
+    )
+  }
+
+  private updateLevel5RightPressRemoveEnemy(): void {
+    const kb = this.input.keyboard
+    if (!kb) return
+    const rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT)
+    const dKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+    if (Phaser.Input.Keyboard.JustDown(rightKey) || Phaser.Input.Keyboard.JustDown(dKey)) {
+      this.level5RightPressCount += 1
+      if (this.level5RightPressCount >= 10) {
+        this.level5RightPressCount = 0
+        const candidates = this.enemies!
+          .getChildren()
+          .filter(
+            (e: Phaser.GameObjects.GameObject) =>
+              e.active && !this.isLevel5GoalPlatformEnemy(e)
+          ) as Enemy[]
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => a.x - b.x)
+          const toRemove = candidates[0]
+          toRemove.destroy()
+        }
+      }
+    }
   }
 
   private getEnemyBounds(
@@ -774,6 +816,10 @@ export class GameScene extends Phaser.Scene {
         this.player.setX(24)
         ;(this.player.body as Phaser.Physics.Arcade.Body).setVelocityX(0)
       }
+    }
+
+    if (this.currentLevel === 5 && this.enemies) {
+      this.updateLevel5RightPressRemoveEnemy()
     }
 
     // Check for falling
