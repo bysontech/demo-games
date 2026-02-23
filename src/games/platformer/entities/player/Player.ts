@@ -64,7 +64,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(): void {
-    const leftDown = this.leftKeys.some((k) => k.isDown)
+    const blockLeft =
+      this.scene.registry.get('level4BlockLeft') === true
+    const leftDown =
+      this.leftKeys.some((k) => k.isDown) && !blockLeft
     const rightDown = this.rightKeys.some((k) => k.isDown)
     if (leftDown) {
       this.setVelocityX(-GameConfig.playerSpeed)
