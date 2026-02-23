@@ -118,13 +118,18 @@ export class MenuScene extends Phaser.Scene {
       fontFamily: 'Inter, Arial, sans-serif',
     }).setOrigin(0.5)
 
-    // Start prompt
-    const startText = this.add.text(400, 500, 'PRESS SPACE TO START', {
-      fontSize: '16px',
-      color: '#6366f1',
-      fontFamily: 'Inter, Arial, sans-serif',
-      fontStyle: 'bold',
-    })
+    // Start prompt - adapt text for touch devices
+    const isTouchDevice = this.sys.game.device.input.touch
+    const startText = this.add.text(
+      400, 500,
+      isTouchDevice ? 'TAP TO START' : 'PRESS SPACE TO START',
+      {
+        fontSize: '16px',
+        color: '#6366f1',
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontStyle: 'bold',
+      }
+    )
     startText.setOrigin(0.5)
 
     this.tweens.add({
@@ -141,13 +146,21 @@ export class MenuScene extends Phaser.Scene {
     bottomBar.fillGradientStyle(0x6366f1, 0x6366f1, 0xf43f5e, 0xf43f5e, 0.3, 0.3, 0.3, 0.3)
     bottomBar.fillRect(250, 555, 300, 1)
 
-    // Start game on space key
-    this.spaceKeyListener = () => {
+    // Start game handler
+    const startGame = () => {
       this.cameras.main.fadeOut(300, 10, 10, 15)
       this.time.delayedCall(300, () => {
         this.scene.start('GameScene')
       })
     }
+
+    // Keyboard: space key
+    this.spaceKeyListener = startGame
     this.input.keyboard!.on('keydown-SPACE', this.spaceKeyListener)
+
+    // Touch: tap anywhere to start
+    if (isTouchDevice) {
+      this.input.once('pointerup', startGame)
+    }
   }
 }

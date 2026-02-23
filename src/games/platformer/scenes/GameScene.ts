@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { Player } from '../entities/player/Player'
 import { Enemy } from '../entities/enemies/Enemy'
 import { HUD } from '../core/HUD'
+import { TouchControlsScene } from './TouchControlsScene'
 import { LevelData } from '../levels/level1'
 import { level1 } from '../levels/level1'
 import { level2 } from '../levels/level2'
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
   private isVictory: boolean = false
   private isPaused: boolean = false
   private bgElements: Phaser.GameObjects.Graphics | null = null
+  private touchControls: TouchControlsScene | null = null
   private pauseMenuObjects: Phaser.GameObjects.GameObject[] = []
   private gameOverMenuObjects: Phaser.GameObjects.GameObject[] = []
   private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
@@ -47,6 +49,15 @@ export class GameScene extends Phaser.Scene {
     this.isGameOver = false
     this.isVictory = false
     this.isPaused = false
+
+    // Launch touch controls overlay on touch devices
+    if (this.sys.game.device.input.touch) {
+      if (!this.scene.get('TouchControlsScene')) {
+        this.scene.add('TouchControlsScene', TouchControlsScene, false)
+      }
+      this.scene.launch('TouchControlsScene')
+      this.touchControls = this.scene.get('TouchControlsScene') as TouchControlsScene
+    }
 
     this.loadLevel(1)
   }
@@ -455,11 +466,20 @@ export class GameScene extends Phaser.Scene {
   // ── Navigation ────────────────────────────────────────────
 
   private restartGame(): void {
+    this.stopTouchControls()
     this.scene.restart()
   }
 
   private goToTitle(): void {
+    this.stopTouchControls()
     this.scene.start('MenuScene')
+  }
+
+  private stopTouchControls(): void {
+    if (this.touchControls && this.scene.isActive('TouchControlsScene')) {
+      this.scene.stop('TouchControlsScene')
+    }
+    this.touchControls = null
   }
 
   // ── Update ────────────────────────────────────────────────
@@ -470,6 +490,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.player && this.player.active) {
+      // Relay touch input to player
+      if (this.touchControls) {
+        this.player.touchLeft = this.touchControls.leftDown
+        this.player.touchRight = this.touchControls.rightDown
+        if (this.touchControls.consumeJump()) {
+          this.player.touchJump = true
+        }
+      }
       this.player.update()
     }
 
