@@ -4,18 +4,26 @@ import type { GameMeta } from '../types'
 export class Hub {
   private container: HTMLElement
   private onSelectGame: (meta: GameMeta) => void
+  private wrapper: HTMLElement | null = null
+  private cards: HTMLElement[] = []
+  private selectedCardIndex: number = 0
+  private boundKeydown: (e: KeyboardEvent) => void
 
   constructor(container: HTMLElement, onSelectGame: (meta: GameMeta) => void) {
     this.container = container
     this.onSelectGame = onSelectGame
+    this.boundKeydown = (e: KeyboardEvent) => this.handleKeydown(e)
     this.render()
   }
 
   private render(): void {
     this.container.innerHTML = ''
+    this.cards = []
+    this.selectedCardIndex = 0
 
     const wrapper = document.createElement('div')
     wrapper.className = 'hub'
+    this.wrapper = wrapper
     wrapper.innerHTML = `
       <div class="hub-bg"></div>
       <div class="hub-content">
@@ -41,6 +49,33 @@ export class Hub {
     games.forEach((meta, index) => {
       const card = this.createCard(meta, index)
       grid.appendChild(card)
+      this.cards.push(card)
+    })
+    this.updateCardSelection()
+    document.addEventListener('keydown', this.boundKeydown)
+  }
+
+  private handleKeydown(e: KeyboardEvent): void {
+    if (!this.wrapper || this.cards.length === 0) return
+    const key = e.key
+    if (key === 'ArrowDown' || key === 's' || key === 'S') {
+      e.preventDefault()
+      this.selectedCardIndex = (this.selectedCardIndex + 1) % this.cards.length
+      this.updateCardSelection()
+    } else if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+      e.preventDefault()
+      this.selectedCardIndex =
+        (this.selectedCardIndex - 1 + this.cards.length) % this.cards.length
+      this.updateCardSelection()
+    } else if (key === 'Enter' || key === ' ') {
+      e.preventDefault()
+      this.cards[this.selectedCardIndex]?.click()
+    }
+  }
+
+  private updateCardSelection(): void {
+    this.cards.forEach((card, i) => {
+      card.classList.toggle('game-card--selected', i === this.selectedCardIndex)
     })
   }
 
@@ -75,6 +110,9 @@ export class Hub {
   }
 
   destroy(): void {
+    document.removeEventListener('keydown', this.boundKeydown)
+    this.wrapper = null
+    this.cards = []
     this.container.innerHTML = ''
   }
 }
@@ -210,6 +248,22 @@ const hubStyles = `
   }
 
   .game-card:hover .game-card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .game-card--selected {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow:
+      0 0 30px -5px color-mix(in srgb, var(--card-color) 30%, transparent),
+      0 20px 40px -10px rgba(0, 0, 0, 0.4);
+  }
+
+  .game-card--selected .game-card-glow {
+    opacity: 1;
+  }
+
+  .game-card--selected .game-card-arrow {
     opacity: 1;
     transform: translateX(0);
   }

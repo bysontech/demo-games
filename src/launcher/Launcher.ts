@@ -6,10 +6,19 @@ export class Launcher {
   private currentGame: GameModule | null = null
   private currentMeta: GameMeta | null = null
   private onBack: () => void
+  private boundStartKeydown: (e: KeyboardEvent) => void
 
   constructor(container: HTMLElement, onBack: () => void) {
     this.container = container
     this.onBack = onBack
+    this.boundStartKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        if (this.wrapper?.querySelector('.launcher-start')) {
+          this.startGame()
+        }
+      }
+    }
   }
 
   async launch(meta: GameMeta): Promise<void> {
@@ -105,10 +114,16 @@ export class Launcher {
 
     const startBtn = this.wrapper.querySelector('#launcher-start-btn')!
     startBtn.addEventListener('click', () => this.startGame())
+    document.addEventListener('keydown', this.boundStartKeydown)
+  }
+
+  private removeStartKeydown(): void {
+    document.removeEventListener('keydown', this.boundStartKeydown)
   }
 
   private startGame(): void {
     if (!this.wrapper || !this.currentGame) return
+    this.removeStartKeydown()
 
     // Replace start screen with game container
     const startEl = this.wrapper.querySelector('.launcher-start')
@@ -135,6 +150,7 @@ export class Launcher {
   }
 
   close(): void {
+    this.removeStartKeydown()
     if (this.currentGame) {
       this.currentGame.destroy()
       this.currentGame = null
