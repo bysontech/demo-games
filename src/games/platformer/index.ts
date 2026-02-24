@@ -17,6 +17,7 @@ const platformerGame: GameModule = {
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
+        expandParent: true,
       },
       input: {
         activePointers: 3,
