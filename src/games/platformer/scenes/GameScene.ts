@@ -8,6 +8,7 @@ import { level2 } from '../levels/level2'
 import { level3 } from '../levels/level3'
 import { level4 } from '../levels/level4'
 import { level5 } from '../levels/level5'
+import { TouchControlsScene } from './TouchControlsScene'
 
 // Level accent colors (indigo -> teal -> rose -> purple -> crimson)
 const LEVEL_ACCENTS: number[] = [
@@ -58,6 +59,7 @@ export class GameScene extends Phaser.Scene {
   private pauseMenuActions: (() => void)[] = []
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
+  private touchControls: TouchControlsScene | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -67,6 +69,15 @@ export class GameScene extends Phaser.Scene {
     this.isGameOver = false
     this.isVictory = false
     this.isPaused = false
+
+    // Launch touch controls overlay on touch devices
+    if (this.sys.game.device.input.touch) {
+      if (!this.scene.get('TouchControlsScene')) {
+        this.scene.add('TouchControlsScene', TouchControlsScene, false)
+      }
+      this.scene.launch('TouchControlsScene')
+      this.touchControls = this.scene.get('TouchControlsScene') as TouchControlsScene
+    }
 
     // Load first level
     this.loadLevel(1)
@@ -870,6 +881,7 @@ export class GameScene extends Phaser.Scene {
 
   private restartGame(): void {
     // Clear refs before restart so we don't use destroyed objects after restart
+    this.stopTouchControls()
     this.enemies = null
     this.platforms = null
     this.hud = null
@@ -877,6 +889,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private goToTitle(): void {
+    this.stopTouchControls()
     this.enemies = null
     this.platforms = null
     this.hud = null
@@ -888,8 +901,16 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private stopTouchControls(): void {
+    if (this.touchControls && this.scene.isActive('TouchControlsScene')) {
+      this.scene.stop('TouchControlsScene')
+    }
+    this.touchControls = null
+  }
+
   shutdown(): void {
     // Clear references so we don't use destroyed objects after restart/stop
+    this.stopTouchControls()
     this.enemies = null
     this.platforms = null
     this.hud = null
@@ -926,6 +947,14 @@ export class GameScene extends Phaser.Scene {
           this.player.x <= 24 &&
           this.player.y > 505
       )
+      // Relay touch input to player
+      if (this.touchControls) {
+        this.player.touchLeft = this.touchControls.leftDown
+        this.player.touchRight = this.touchControls.rightDown
+        if (this.touchControls.consumeJump()) {
+          this.player.touchJump = true
+        }
+      }
       this.player.update()
     }
 
