@@ -917,6 +917,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(): void {
+    if (this.input.keyboard) {
+      const esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+      if (Phaser.Input.Keyboard.JustDown(esc)) {
+        this.togglePause()
+      }
+    }
+
     if (this.isGameOver) {
       this.handleMenuKeys(
         2,
