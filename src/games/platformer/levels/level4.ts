@@ -7,6 +7,8 @@ export const level4: LevelData = {
   playerStartY: 400,
   backgroundColor: 0x150c1f,
   platforms: [
+    // Left off-screen platform (reachable by jumping left from start)
+    { x: -120, y: 520, width: 80, height: 20 },
     // Starting platform
     { x: 0, y: 550, width: 200, height: 50 },
     // Small platforms with big gaps

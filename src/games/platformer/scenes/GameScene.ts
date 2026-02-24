@@ -2,44 +2,64 @@ import Phaser from 'phaser'
 import { Player } from '../entities/player/Player'
 import { Enemy } from '../entities/enemies/Enemy'
 import { HUD } from '../core/HUD'
-import { TouchControlsScene } from './TouchControlsScene'
 import { LevelData } from '../levels/level1'
 import { level1 } from '../levels/level1'
 import { level2 } from '../levels/level2'
 import { level3 } from '../levels/level3'
 import { level4 } from '../levels/level4'
 import { level5 } from '../levels/level5'
+import { TouchControlsScene } from './TouchControlsScene'
 
 // Level accent colors (indigo -> teal -> rose -> purple -> crimson)
 const LEVEL_ACCENTS: number[] = [
   0x6366f1, 0x10b981, 0xf43f5e, 0xa855f7, 0xef4444,
 ]
 
-// Shared button style constants
-const BTN_FONT = 'Inter, Arial, sans-serif'
-const BTN_NORMAL = '#1e1e2e'
-const BTN_HOVER = '#2a2a3e'
+const GAME_OVER_HINTS: Record<number, string> = {
+  1: 'がんばれ！',
+  2: '敵の動きをよく見て、タイミングを合わせよう！',
+  3: '時間をかければチャンスあり！？',
+  4: '見えないところに近道あり！？',
+  5: '敵と同じ動きをしてみよう！！',
+}
 
 export class GameScene extends Phaser.Scene {
   private player!: Player
-  private enemies!: Phaser.Physics.Arcade.Group
-  private platforms!: Phaser.Physics.Arcade.StaticGroup
+  private enemies: Phaser.Physics.Arcade.Group | null = null
+  private platforms: Phaser.Physics.Arcade.StaticGroup | null = null
   private goal!: Phaser.Physics.Arcade.Sprite
   private goalGlow!: Phaser.GameObjects.Graphics
-  private hud!: HUD
+  private hud: HUD | null = null
   private currentLevel: number = 1
   private levelData!: LevelData
   private isLevelTransitioning: boolean = false
   private isGameOver: boolean = false
   private isVictory: boolean = false
   private isPaused: boolean = false
-  private bgElements: Phaser.GameObjects.Graphics | null = null
-  private touchControls: TouchControlsScene | null = null
   private pauseMenuObjects: Phaser.GameObjects.GameObject[] = []
   private gameOverMenuObjects: Phaser.GameObjects.GameObject[] = []
   private victoryMenuObjects: Phaser.GameObjects.GameObject[] = []
+  private bgElements: Phaser.GameObjects.Graphics | null = null
+  private platformEdgeGraphics: Phaser.GameObjects.Graphics | null = null
+  private goalPlatform: Phaser.GameObjects.Rectangle | null = null
+  private goalPlatformFallTimer: Phaser.Time.TimerEvent | null = null
+  private goalPlatformReturnTimer: Phaser.Time.TimerEvent | null = null
+  private goalPlatformFalling: boolean = false
+  private static readonly LEVEL3_FALL_SPEED = 400
+  private static readonly LEVEL3_GOAL_PLATFORM_CX = 750
+  private static readonly LEVEL3_GOAL_PLATFORM_CY = 250
+  private level5RightPressCount: number = 0
+  private static readonly LEVEL5_GOAL_PLATFORM_X = 600
+  private static readonly LEVEL5_GOAL_PLATFORM_Y = 200
+  private static readonly LEVEL5_GOAL_PLATFORM_WIDTH = 120
+  private menuSelectedIndex: number = 0
+  private gameOverMenuButtonTexts: Phaser.GameObjects.Text[] = []
+  private victoryMenuButtonTexts: Phaser.GameObjects.Text[] = []
+  private pauseMenuButtonTexts: Phaser.GameObjects.Text[] = []
+  private pauseMenuActions: (() => void)[] = []
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
+  private touchControls: TouchControlsScene | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -59,17 +79,41 @@ export class GameScene extends Phaser.Scene {
       this.touchControls = this.scene.get('TouchControlsScene') as TouchControlsScene
     }
 
+    // Load first level
     this.loadLevel(1)
   }
 
   private loadLevel(levelNumber: number): void {
-    // Clean up previous level
+    // Clean up previous level (enemies/platforms are null after shutdown, so no .clear() on destroyed groups)
     if (this.player) this.player.destroy()
     if (this.enemies) this.enemies.clear(true, true)
     if (this.platforms) this.platforms.clear(true, true)
     if (this.goal) this.goal.destroy()
     if (this.goalGlow) this.goalGlow.destroy()
-    if (this.bgElements) this.bgElements.destroy()
+    if (this.bgElements) {
+      this.bgElements.destroy()
+      this.bgElements = null
+    }
+    if (this.platformEdgeGraphics) {
+      this.platformEdgeGraphics.destroy()
+      this.platformEdgeGraphics = null
+    }
+    if (this.goalPlatform) {
+      this.goalPlatform.destroy()
+      this.goalPlatform = null
+    }
+    if (this.goalPlatformFallTimer) {
+      this.goalPlatformFallTimer.destroy()
+      this.goalPlatformFallTimer = null
+    }
+    if (this.goalPlatformReturnTimer) {
+      this.goalPlatformReturnTimer.destroy()
+      this.goalPlatformReturnTimer = null
+    }
+    this.goalPlatformFalling = false
+    if (levelNumber === 5) {
+      this.level5RightPressCount = 0
+    }
 
     this.isLevelTransitioning = false
     this.currentLevel = levelNumber
@@ -98,27 +142,32 @@ export class GameScene extends Phaser.Scene {
 
     // Create platforms with modern style
     this.platforms = this.physics.add.staticGroup()
+    this.platformEdgeGraphics = this.add.graphics()
+    this.platformEdgeGraphics.setDepth(1)
+
+    const isLevel3GoalPlatform = (p: { x: number; y: number }) =>
+      this.currentLevel === 3 && p.x === 700 && p.y === 240
+
     this.levelData.platforms.forEach((platform) => {
+      if (isLevel3GoalPlatform(platform)) {
+        return
+      }
       const cx = platform.x + platform.width / 2
       const cy = platform.y + platform.height / 2
 
+      // Platform body (no stroke to avoid extra lines at segment boundaries)
       const rect = this.add.rectangle(
         cx, cy,
         platform.width,
         platform.height,
         0x1e293b
       )
-      rect.setStrokeStyle(1, accent, 0.2)
       this.physics.add.existing(rect, true)
-      this.platforms.add(rect)
+      this.platforms!.add(rect)
 
-      // Top accent edge
-      const edge = this.add.rectangle(
-        cx, platform.y + 1,
-        platform.width, 2,
-        accent, 0.5
-      )
-      edge.setDepth(1)
+      // Top accent: draw exactly platform.x .. platform.x+width, no extension
+      this.platformEdgeGraphics!.fillStyle(accent, 0.5)
+      this.platformEdgeGraphics!.fillRect(platform.x, platform.y, platform.width, 2)
     })
 
     // Create player
@@ -139,15 +188,24 @@ export class GameScene extends Phaser.Scene {
         enemyData.type,
         bounds
       )
-      this.enemies.add(enemy)
+      this.enemies!.add(enemy)
     })
 
     // Create goal
     this.createGoal(accent)
 
+    // Level 3: goal platform falls after 15s
+    if (this.currentLevel === 3) {
+      this.setupLevel3FallingGoalPlatform()
+    }
+
     // Setup collisions
     this.physics.add.collider(this.player, this.platforms)
     this.physics.add.collider(this.enemies, this.platforms)
+    if (this.goalPlatform) {
+      this.physics.add.collider(this.player, this.goalPlatform)
+      this.physics.add.collider(this.enemies, this.goalPlatform)
+    }
     this.physics.add.overlap(
       this.player,
       this.enemies,
@@ -168,11 +226,15 @@ export class GameScene extends Phaser.Scene {
       this.hud = new HUD(this)
       this.hud.setPauseCallback(() => this.togglePause())
     }
-    this.hud.updateLevel(this.levelData.name)
-    this.hud.updateLives(this.player.getLives())
+    this.hud!.updateLevel(this.levelData.name)
+    this.hud!.updateLives(this.player.getLives())
 
-    // Setup camera
-    this.physics.world.setBounds(0, 0, 800, 900)
+    // Setup camera and world bounds (level 4: extend left for off-screen wrap)
+    if (this.currentLevel === 4) {
+      this.physics.world.setBounds(-160, 0, 960, 900)
+    } else {
+      this.physics.world.setBounds(0, 0, 800, 900)
+    }
     this.cameras.main.setBounds(0, 0, 800, 600)
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
 
@@ -181,6 +243,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createGoal(accent: number): void {
+    // Goal glow effect (background circle)
     this.goalGlow = this.add.graphics()
     this.goalGlow.fillStyle(accent, 0.15)
     this.goalGlow.fillCircle(this.levelData.goalX, this.levelData.goalY, 24)
@@ -197,13 +260,21 @@ export class GameScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     })
 
+    // Goal sprite (diamond shape)
     const graphics = this.make.graphics({ x: 0, y: 0 }, false)
+
+    // Outer glow
     graphics.fillStyle(accent, 0.3)
     graphics.fillCircle(16, 16, 14)
+
+    // Inner bright core
     graphics.fillStyle(0xffffff, 0.9)
     graphics.fillCircle(16, 16, 6)
+
+    // Middle ring
     graphics.lineStyle(2, accent, 0.8)
     graphics.strokeCircle(16, 16, 10)
+
     graphics.generateTexture('goal', 32, 32)
     graphics.destroy()
 
@@ -220,6 +291,87 @@ export class GameScene extends Phaser.Scene {
       duration: 3000,
       repeat: -1,
     })
+  }
+
+  private setupLevel3FallingGoalPlatform(): void {
+    const x = 700
+    const y = 240
+    const w = 100
+    const h = 20
+    const cx = x + w / 2
+    const cy = y + h / 2
+
+    const rect = this.add.rectangle(cx, cy, w, h, 0x1e293b)
+    this.physics.add.existing(rect, false)
+    const body = rect.body as Phaser.Physics.Arcade.Body
+    body.setAllowGravity(false)
+    body.setImmovable(true)
+    rect.setDepth(0)
+    this.goalPlatform = rect
+
+    this.goalPlatformFallTimer = this.time.delayedCall(15000, () => {
+      this.goalPlatformFallTimer = null
+      if (!this.goalPlatform || !this.goal.active) return
+      const platformBody = this.goalPlatform.body as Phaser.Physics.Arcade.Body
+      platformBody.setImmovable(false)
+      this.goal.setImmovable(false)
+      this.goalPlatformFalling = true
+
+      this.goalPlatformReturnTimer = this.time.delayedCall(10000, () => {
+        this.goalPlatformReturnTimer = null
+        if (!this.goalPlatform?.active || !this.goal?.active) return
+        this.goalPlatformFalling = false
+        const platformBody = this.goalPlatform!.body as Phaser.Physics.Arcade.Body
+        platformBody.setVelocity(0, 0)
+        platformBody.setImmovable(true)
+        this.goalPlatform!.setPosition(
+          GameScene.LEVEL3_GOAL_PLATFORM_CX,
+          GameScene.LEVEL3_GOAL_PLATFORM_CY
+        )
+        const goalBody = this.goal.body as Phaser.Physics.Arcade.Body
+        goalBody.setVelocity(0, 0)
+        this.goal.setImmovable(true)
+        this.goal.setPosition(
+          this.levelData.goalX,
+          this.levelData.goalY
+        )
+      })
+    })
+  }
+
+  private isLevel5GoalPlatformEnemy(enemy: Phaser.GameObjects.GameObject): boolean {
+    const x = (enemy as Phaser.Physics.Arcade.Sprite).x
+    const y = (enemy as Phaser.Physics.Arcade.Sprite).y
+    return (
+      x >= GameScene.LEVEL5_GOAL_PLATFORM_X &&
+      x <= GameScene.LEVEL5_GOAL_PLATFORM_X + GameScene.LEVEL5_GOAL_PLATFORM_WIDTH &&
+      y >= GameScene.LEVEL5_GOAL_PLATFORM_Y - 50 &&
+      y <= GameScene.LEVEL5_GOAL_PLATFORM_Y + 30
+    )
+  }
+
+  private updateLevel5RightPressRemoveEnemy(): void {
+    const kb = this.input.keyboard
+    if (!kb) return
+    const rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT)
+    const dKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+    if (Phaser.Input.Keyboard.JustDown(rightKey) || Phaser.Input.Keyboard.JustDown(dKey)) {
+      this.level5RightPressCount += 1
+      if (this.level5RightPressCount >= 10) {
+        this.level5RightPressCount = 0
+        const candidates = this.enemies!
+          .getChildren()
+          .filter(
+            (e: Phaser.GameObjects.GameObject) =>
+              e.active && !this.isLevel5GoalPlatformEnemy(e)
+          ) as Enemy[]
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => a.x - b.x)
+          const toRemove = candidates[0]
+          toRemove.destroy()
+        }
+      }
+    }
   }
 
   private getEnemyBounds(
@@ -264,7 +416,7 @@ export class GameScene extends Phaser.Scene {
     const playerSprite = player as Player
     const isDead = playerSprite.takeDamage()
 
-    this.hud.updateLives(playerSprite.getLives())
+    this.hud!.updateLives(playerSprite.getLives())
 
     if (isDead) {
       this.gameOver()
@@ -297,128 +449,198 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ── Styled button helper ──────────────────────────────────
-
-  private createStyledButton(
-    x: number, y: number, label: string, color: string, onClick: () => void
-  ): Phaser.GameObjects.Text {
-    const btn = this.add.text(x, y, label, {
-      fontSize: '18px',
-      color,
-      fontFamily: BTN_FONT,
-      fontStyle: 'bold',
-      backgroundColor: BTN_NORMAL,
-      padding: { x: 24, y: 10 },
-    })
-    btn.setOrigin(0.5)
-    btn.setScrollFactor(0)
-    btn.setDepth(2000)
-    btn.setInteractive({ useHandCursor: true })
-    btn.on('pointerup', onClick)
-    btn.on('pointerover', () => btn.setBackgroundColor(BTN_HOVER))
-    btn.on('pointerout', () => btn.setBackgroundColor(BTN_NORMAL))
-    return btn
-  }
-
-  private createOverlayBg(): Phaser.GameObjects.Rectangle {
-    const bg = this.add.rectangle(400, 300, 800, 600, 0x0a0a0f, 0.88)
-    bg.setScrollFactor(0)
-    bg.setDepth(1999)
-    return bg
-  }
-
-  private createOverlayTitle(
-    y: number, text: string, color: string, size = '48px'
-  ): Phaser.GameObjects.Text {
-    const t = this.add.text(400, y, text, {
-      fontSize: size,
-      color,
-      fontFamily: BTN_FONT,
-      fontStyle: 'bold',
-      align: 'center',
-    })
-    t.setOrigin(0.5)
-    t.setScrollFactor(0)
-    t.setDepth(2000)
-    return t
-  }
-
-  // ── Game Over ─────────────────────────────────────────────
-
   private gameOver(): void {
     this.isGameOver = true
+    // Stop movement like pause: physics + player
+    this.physics.world.pause()
+    if (this.player) {
+      this.player.setActive(false)
+    }
     this.showGameOverMenu()
   }
 
   private showGameOverMenu(): void {
+    // Remove existing menu if any
     this.gameOverMenuObjects.forEach(obj => obj.destroy())
     this.gameOverMenuObjects = []
 
-    const bg = this.createOverlayBg()
-    const title = this.createOverlayTitle(220, 'GAME OVER', '#f43f5e')
+    // Create semi-transparent background
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
 
-    const sub = this.add.text(400, 275, 'ライフがなくなりました', {
-      fontSize: '14px',
-      color: '#64748b',
-      fontFamily: BTN_FONT,
+    // Create title text
+    const titleText = this.add.text(400, 200, 'GAME OVER', {
+      fontSize: '48px',
+      color: '#ffffff',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 6,
     })
-    sub.setOrigin(0.5)
-    sub.setScrollFactor(0)
-    sub.setDepth(2000)
+    titleText.setOrigin(0.5)
+    titleText.setScrollFactor(0)
+    titleText.setDepth(2000)
 
-    const restartBtn = this.createStyledButton(
-      400, 340, 'リスタート', '#6366f1', () => this.restartGame()
+    const hintText = this.add.text(
+      400,
+      270,
+      GAME_OVER_HINTS[this.currentLevel] ?? 'がんばれ！',
+      {
+        fontSize: '20px',
+        color: '#e2e8f0',
+        align: 'center',
+        wordWrap: { width: 520 },
+      }
     )
-    const titleBtn = this.createStyledButton(
-      400, 400, 'タイトルに戻る', '#94a3b8', () => this.goToTitle()
-    )
+    hintText.setOrigin(0.5)
+    hintText.setScrollFactor(0)
+    hintText.setDepth(2000)
 
-    this.gameOverMenuObjects = [bg, title, sub, restartBtn, titleBtn]
+    // Create restart button
+    const restartButton = this.add.text(400, 360, 'リスタート', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    restartButton.setOrigin(0.5)
+    restartButton.setScrollFactor(0)
+    restartButton.setDepth(2000)
+    restartButton.setInteractive({ useHandCursor: true })
+    restartButton.on('pointerup', () => {
+      this.restartGame()
+    })
+    restartButton.on('pointerover', () => {
+      restartButton.setBackgroundColor('#555555')
+    })
+    restartButton.on('pointerout', () => {
+      restartButton.setBackgroundColor('#333333')
+    })
+
+    // Create title button
+    const titleButton = this.add.text(400, 430, 'タイトルに戻る', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    titleButton.setOrigin(0.5)
+    titleButton.setScrollFactor(0)
+    titleButton.setDepth(2000)
+    titleButton.setInteractive({ useHandCursor: true })
+    titleButton.on('pointerup', () => {
+      this.goToTitle()
+    })
+    titleButton.on('pointerover', () => {
+      titleButton.setBackgroundColor('#555555')
+    })
+    titleButton.on('pointerout', () => {
+      titleButton.setBackgroundColor('#333333')
+    })
+
+    // Store references for cleanup and keyboard menu
+    this.gameOverMenuObjects = [bg, titleText, hintText, restartButton, titleButton]
+    this.gameOverMenuButtonTexts = [restartButton, titleButton]
+    this.menuSelectedIndex = 0
+    this.updateGameOverMenuSelection()
   }
 
-  // ── Victory ───────────────────────────────────────────────
+  private updateGameOverMenuSelection(): void {
+    this.gameOverMenuButtonTexts.forEach((btn, i) => {
+      btn.setBackgroundColor(i === this.menuSelectedIndex ? '#555555' : '#333333')
+    })
+  }
 
   private showVictory(): void {
     this.isVictory = true
+    // Don't pause scene to allow button interactions
     this.showVictoryMenu()
   }
 
   private showVictoryMenu(): void {
+    // Remove existing menu if any
     this.victoryMenuObjects.forEach(obj => obj.destroy())
     this.victoryMenuObjects = []
 
-    const bg = this.createOverlayBg()
-    const title = this.createOverlayTitle(200, 'COMPLETE', '#f1f5f9', '56px')
+    // Create semi-transparent background
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
 
-    const sub = this.add.text(400, 260, '全レベルクリア！', {
-      fontSize: '18px',
-      color: '#6366f1',
-      fontFamily: BTN_FONT,
+    // Create title text
+    const titleText = this.add.text(400, 200, 'CONGRATULATIONS!\n全レベルクリア！', {
+      fontSize: '36px',
+      color: '#FFD700',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 6,
     })
-    sub.setOrigin(0.5)
-    sub.setScrollFactor(0)
-    sub.setDepth(2000)
+    titleText.setOrigin(0.5)
+    titleText.setScrollFactor(0)
+    titleText.setDepth(2000)
 
-    // Stage dots
-    const dots = this.add.graphics()
-    dots.setScrollFactor(0)
-    dots.setDepth(2000)
-    for (let i = 0; i < 5; i++) {
-      dots.fillStyle(0x6366f1, 0.8)
-      dots.fillCircle(370 + i * 16, 295, 4)
-    }
+    // Create restart button
+    const restartButton = this.add.text(400, 350, 'もう一度プレイ', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    restartButton.setOrigin(0.5)
+    restartButton.setScrollFactor(0)
+    restartButton.setDepth(2000)
+    restartButton.setInteractive({ useHandCursor: true })
+    restartButton.on('pointerup', () => {
+      this.restartGame()
+    })
+    restartButton.on('pointerover', () => {
+      restartButton.setBackgroundColor('#555555')
+    })
+    restartButton.on('pointerout', () => {
+      restartButton.setBackgroundColor('#333333')
+    })
 
-    const restartBtn = this.createStyledButton(
-      400, 350, 'もう一度プレイ', '#6366f1', () => this.restartGame()
-    )
-    const titleBtn = this.createStyledButton(
-      400, 410, 'タイトルに戻る', '#94a3b8', () => this.goToTitle()
-    )
+    // Create title button
+    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#333333',
+      padding: { x: 20, y: 10 },
+      stroke: '#000000',
+      strokeThickness: 2,
+    })
+    titleButton.setOrigin(0.5)
+    titleButton.setScrollFactor(0)
+    titleButton.setDepth(2000)
+    titleButton.setInteractive({ useHandCursor: true })
+    titleButton.on('pointerup', () => {
+      this.goToTitle()
+    })
+    titleButton.on('pointerover', () => {
+      titleButton.setBackgroundColor('#555555')
+    })
+    titleButton.on('pointerout', () => {
+      titleButton.setBackgroundColor('#333333')
+    })
 
-    this.victoryMenuObjects = [bg, title, sub, dots, restartBtn, titleBtn]
+    // Store references for cleanup and keyboard menu
+    this.victoryMenuObjects = [bg, titleText, restartButton, titleButton]
+    this.victoryMenuButtonTexts = [restartButton, titleButton]
+    this.menuSelectedIndex = 0
+    this.updateVictoryMenuSelection()
   }
 
-  // ── Pause ─────────────────────────────────────────────────
+  private updateVictoryMenuSelection(): void {
+    this.victoryMenuButtonTexts.forEach((btn, i) => {
+      btn.setBackgroundColor(i === this.menuSelectedIndex ? '#555555' : '#333333')
+    })
+  }
 
   private togglePause(): void {
     if (this.isGameOver || this.isVictory) {
@@ -434,45 +656,249 @@ export class GameScene extends Phaser.Scene {
 
   private pauseGame(): void {
     this.isPaused = true
+    // Pause physics world to stop all movement
+    this.physics.world.pause()
+    // Disable player input
+    if (this.player) {
+      this.player.setActive(false)
+    }
     this.showPauseMenu()
   }
 
   private resumeGame(): void {
     this.isPaused = false
+    // Resume physics world
+    this.physics.world.resume()
+    // Re-enable player
+    if (this.player) {
+      this.player.setActive(true)
+    }
     this.pauseMenuObjects.forEach(obj => obj.destroy())
     this.pauseMenuObjects = []
   }
 
   private showPauseMenu(): void {
+    // Remove existing menu if any
     this.pauseMenuObjects.forEach(obj => obj.destroy())
     this.pauseMenuObjects = []
 
-    const bg = this.createOverlayBg()
-    const title = this.createOverlayTitle(210, 'PAUSED', '#f1f5f9')
+    const accent = LEVEL_ACCENTS[this.currentLevel - 1]
 
-    const resumeBtn = this.createStyledButton(
-      400, 300, 'ゲームを再開', '#6366f1', () => this.resumeGame()
-    )
-    const restartBtn = this.createStyledButton(
-      400, 360, 'リスタート', '#94a3b8', () => this.restartGame()
-    )
-    const titleBtn = this.createStyledButton(
-      400, 420, 'タイトルに戻る', '#94a3b8', () => this.goToTitle()
-    )
+    // Semi-transparent background overlay
+    const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.6)
+    bg.setScrollFactor(0)
+    bg.setDepth(1999)
 
-    this.pauseMenuObjects = [bg, title, resumeBtn, restartBtn, titleBtn]
+    // Central card (Hub/Launcher style)
+    const cardW = 420
+    const cardH = 380
+    const cardX = 400 - cardW / 2
+    const cardY = 180
+
+    const cardBg = this.add.graphics()
+    cardBg.fillStyle(0xffffff, 0.06)
+    cardBg.fillRoundedRect(cardX, cardY, cardW, cardH, 16)
+    cardBg.lineStyle(1, 0xffffff, 0.1)
+    cardBg.strokeRoundedRect(cardX, cardY, cardW, cardH, 16)
+    cardBg.setScrollFactor(0)
+    cardBg.setDepth(2000)
+
+    // Subtle glow effect
+    const glow = this.add.graphics()
+    glow.fillStyle(accent, 0.08)
+    glow.fillRoundedRect(cardX - 2, cardY - 2, cardW + 4, cardH + 4, 18)
+    glow.setScrollFactor(0)
+    glow.setDepth(1999)
+
+    // Title
+    const titleText = this.add.text(400, cardY + 50, 'ポーズ', {
+      fontSize: '32px',
+      color: '#f1f5f9',
+      fontFamily: 'Inter, Arial, sans-serif',
+      fontStyle: 'bold',
+    })
+    titleText.setOrigin(0.5, 0)
+    titleText.setScrollFactor(0)
+    titleText.setDepth(2001)
+
+    // Helper to create Hub-style button
+    const createButton = (
+      y: number,
+      text: string,
+      onClick: () => void,
+      isPrimary: boolean = false
+    ) => {
+      const btnW = 280
+      const btnH = 48
+      const btnX = 400 - btnW / 2
+      const btnY = y
+
+      const btnBg = this.add.graphics()
+      if (isPrimary) {
+        btnBg.fillStyle(accent, 0.9)
+      } else {
+        btnBg.fillStyle(0xffffff, 0.06)
+      }
+      btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+      if (!isPrimary) {
+        btnBg.lineStyle(1, 0xffffff, 0.1)
+        btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 12)
+      }
+      btnBg.setScrollFactor(0)
+      btnBg.setDepth(2001)
+
+      const btnText = this.add.text(400, btnY + btnH / 2, text, {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontFamily: 'Inter, Arial, sans-serif',
+        fontStyle: 'bold',
+      })
+      btnText.setOrigin(0.5)
+      btnText.setScrollFactor(0)
+      btnText.setDepth(2002)
+
+      const hitArea = this.add.zone(400, btnY + btnH / 2, btnW, btnH)
+      hitArea.setInteractive({ useHandCursor: true })
+      hitArea.setScrollFactor(0)
+      hitArea.setDepth(2002)
+      hitArea.on('pointerup', onClick)
+      hitArea.on('pointerover', () => {
+        btnBg.clear()
+        if (isPrimary) {
+          btnBg.fillStyle(accent, 1)
+        } else {
+          btnBg.fillStyle(0xffffff, 0.1)
+        }
+        btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+        if (!isPrimary) {
+          btnBg.lineStyle(1, 0xffffff, 0.15)
+          btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 12)
+        }
+        btnText.setScale(1.02)
+      })
+      hitArea.on('pointerout', () => {
+        btnBg.clear()
+        if (isPrimary) {
+          btnBg.fillStyle(accent, 0.9)
+        } else {
+          btnBg.fillStyle(0xffffff, 0.06)
+        }
+        btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+        if (!isPrimary) {
+          btnBg.lineStyle(1, 0xffffff, 0.1)
+          btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 12)
+        }
+        btnText.setScale(1)
+      })
+
+      return [btnBg, btnText, hitArea]
+    }
+
+    // Buttons
+    const resumeBtn = createButton(cardY + 140, 'ゲームを再開', () => this.resumeGame(), true)
+    const restartBtn = createButton(cardY + 210, 'リスタート', () => this.restartGame())
+    const titleBtn = createButton(cardY + 280, 'タイトルに戻る', () => this.goToTitle())
+
+    this.pauseMenuButtonTexts = [
+      resumeBtn[1] as Phaser.GameObjects.Text,
+      restartBtn[1] as Phaser.GameObjects.Text,
+      titleBtn[1] as Phaser.GameObjects.Text,
+    ]
+    this.pauseMenuActions = [
+      () => this.resumeGame(),
+      () => this.restartGame(),
+      () => this.goToTitle(),
+    ]
+    this.menuSelectedIndex = 0
+    this.updatePauseMenuSelection()
+
+    // Store references for cleanup
+    this.pauseMenuObjects = [
+      bg,
+      glow,
+      cardBg,
+      titleText,
+      ...resumeBtn,
+      ...restartBtn,
+      ...titleBtn,
+    ]
   }
 
-  // ── Navigation ────────────────────────────────────────────
+  private updatePauseMenuSelection(): void {
+    this.pauseMenuButtonTexts.forEach((btn, i) => {
+      btn.setScale(i === this.menuSelectedIndex ? 1.02 : 1)
+    })
+  }
+
+  private handleMenuKeys(
+    count: number,
+    buttonTexts: Phaser.GameObjects.Text[],
+    updateVisual: () => void,
+    actions: (() => void)[]
+  ): void {
+    if (buttonTexts.length !== count || !this.input.keyboard) return
+    const kb = this.input.keyboard
+    const up = kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP)
+    const down = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)
+    const w = kb.addKey(Phaser.Input.Keyboard.KeyCodes.W)
+    const s = kb.addKey(Phaser.Input.Keyboard.KeyCodes.S)
+    const enter = kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+    const space = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+    if (Phaser.Input.Keyboard.JustDown(up) || Phaser.Input.Keyboard.JustDown(w)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex - 1 + count) % count
+      updateVisual()
+    }
+    if (Phaser.Input.Keyboard.JustDown(down) || Phaser.Input.Keyboard.JustDown(s)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex + 1) % count
+      updateVisual()
+    }
+    if (Phaser.Input.Keyboard.JustDown(enter) || Phaser.Input.Keyboard.JustDown(space)) {
+      actions[this.menuSelectedIndex]?.()
+    }
+  }
+
+  private handlePauseMenuKeys(): void {
+    if (this.pauseMenuButtonTexts.length !== 3 || !this.input.keyboard) return
+    const kb = this.input.keyboard
+    const up = kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP)
+    const down = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN)
+    const w = kb.addKey(Phaser.Input.Keyboard.KeyCodes.W)
+    const s = kb.addKey(Phaser.Input.Keyboard.KeyCodes.S)
+    const enter = kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+    const space = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+    if (Phaser.Input.Keyboard.JustDown(up) || Phaser.Input.Keyboard.JustDown(w)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex - 1 + 3) % 3
+      this.updatePauseMenuSelection()
+    }
+    if (Phaser.Input.Keyboard.JustDown(down) || Phaser.Input.Keyboard.JustDown(s)) {
+      this.menuSelectedIndex = (this.menuSelectedIndex + 1) % 3
+      this.updatePauseMenuSelection()
+    }
+    if (Phaser.Input.Keyboard.JustDown(enter) || Phaser.Input.Keyboard.JustDown(space)) {
+      this.pauseMenuActions[this.menuSelectedIndex]?.()
+    }
+  }
 
   private restartGame(): void {
+    // Clear refs before restart so we don't use destroyed objects after restart
     this.stopTouchControls()
+    this.enemies = null
+    this.platforms = null
+    this.hud = null
     this.scene.restart()
   }
 
   private goToTitle(): void {
     this.stopTouchControls()
-    this.scene.start('MenuScene')
+    this.enemies = null
+    this.platforms = null
+    this.hud = null
+    const onTitleRequest = this.registry.get('onTitleRequest') as (() => void) | undefined
+    if (onTitleRequest) {
+      onTitleRequest()
+    } else {
+      this.scene.start('MenuScene')
+    }
   }
 
   private stopTouchControls(): void {
@@ -482,14 +908,45 @@ export class GameScene extends Phaser.Scene {
     this.touchControls = null
   }
 
-  // ── Update ────────────────────────────────────────────────
+  shutdown(): void {
+    // Clear references so we don't use destroyed objects after restart/stop
+    this.stopTouchControls()
+    this.enemies = null
+    this.platforms = null
+    this.hud = null
+  }
 
   update(): void {
-    if (this.isPaused || this.isGameOver || this.isVictory) {
+    if (this.isGameOver) {
+      this.handleMenuKeys(
+        2,
+        this.gameOverMenuButtonTexts,
+        () => this.updateGameOverMenuSelection(),
+        [() => this.restartGame(), () => this.goToTitle()]
+      )
+      return
+    }
+    if (this.isVictory) {
+      this.handleMenuKeys(
+        2,
+        this.victoryMenuButtonTexts,
+        () => this.updateVictoryMenuSelection(),
+        [() => this.restartGame(), () => this.goToTitle()]
+      )
+      return
+    }
+    if (this.isPaused) {
+      this.handlePauseMenuKeys()
       return
     }
 
     if (this.player && this.player.active) {
+      this.registry.set(
+        'level4BlockLeft',
+        this.currentLevel === 4 &&
+          this.player.x <= 24 &&
+          this.player.y > 505
+      )
       // Relay touch input to player
       if (this.touchControls) {
         this.player.touchLeft = this.touchControls.leftDown
@@ -507,10 +964,30 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
+    if (this.goalPlatformFalling && this.goalPlatform?.active && this.goal?.active) {
+      const fallSpeed = GameScene.LEVEL3_FALL_SPEED
+      ;(this.goalPlatform.body as Phaser.Physics.Arcade.Body).setVelocityY(fallSpeed)
+      ;(this.goal.body as Phaser.Physics.Arcade.Body).setVelocityY(fallSpeed)
+    }
+
+    if (this.currentLevel === 4 && this.player?.active) {
+      if (this.player.x < -40) {
+        this.player.setPosition(780, -30)
+        this.player.setVelocity(0, 400)
+      } else if (this.player.x < 0 && this.player.y > 505) {
+        this.player.setX(24)
+        ;(this.player.body as Phaser.Physics.Arcade.Body).setVelocityX(0)
+      }
+    }
+
+    if (this.currentLevel === 5 && this.enemies) {
+      this.updateLevel5RightPressRemoveEnemy()
+    }
+
     // Check for falling
     if (this.player && this.player.y > 650) {
       const isDead = this.player.takeDamage()
-      this.hud.updateLives(this.player.getLives())
+      this.hud!.updateLives(this.player.getLives())
 
       if (isDead) {
         this.gameOver()

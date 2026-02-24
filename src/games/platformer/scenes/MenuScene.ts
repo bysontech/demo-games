@@ -1,166 +1,131 @@
 import Phaser from 'phaser'
 
-export class MenuScene extends Phaser.Scene {
-  private spaceKeyListener?: () => void
+// Hub風カラー
+const BG = 0x0a0a0f
+const CARD_BG = 0xffffff
+const CARD_BG_ALPHA = 0.06
+const ACCENT = 0x6366f1
+const TEXT_MAIN = '#f1f5f9'
+const TEXT_SUB = '#94a3b8'
 
+export class MenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MenuScene' })
   }
 
   create(): void {
-    // Remove old listener if exists
-    if (this.spaceKeyListener) {
-      this.input.keyboard!.off('keydown-SPACE', this.spaceKeyListener)
-    }
+    this.cameras.main.setBackgroundColor(BG)
 
-    this.cameras.main.setBackgroundColor(0x0a0a0f)
-
-    // Background ambient glow
-    const bgGlow = this.add.graphics()
-    bgGlow.fillStyle(0x6366f1, 0.08)
-    bgGlow.fillCircle(200, 250, 250)
-    bgGlow.fillStyle(0xf43f5e, 0.05)
-    bgGlow.fillCircle(600, 150, 200)
-    bgGlow.fillStyle(0x10b981, 0.04)
-    bgGlow.fillCircle(400, 500, 220)
-
-    // Dot grid pattern
+    // 背景のドットグリッド風（薄い点）
     const dots = this.add.graphics()
-    dots.fillStyle(0xffffff, 0.025)
     for (let x = 20; x < 800; x += 40) {
       for (let y = 20; y < 600; y += 40) {
+        dots.fillStyle(0xffffff, 0.04)
         dots.fillCircle(x, y, 1)
       }
     }
+    dots.setScrollFactor(0)
 
-    // Decorative gradient line
-    const topLine = this.add.graphics()
-    topLine.fillGradientStyle(0x6366f1, 0x6366f1, 0xf43f5e, 0xf43f5e, 0.6, 0.6, 0.6, 0.6)
-    topLine.fillRect(150, 100, 500, 2)
+    // 中央カード風パネル（角丸四角）
+    const cardW = 420
+    const cardH = 380
+    const cardX = 400 - cardW / 2
+    const cardY = 180
+    const card = this.add.graphics()
+    card.fillStyle(CARD_BG, CARD_BG_ALPHA)
+    card.fillRoundedRect(cardX, cardY, cardW, cardH, 16)
+    card.lineStyle(1, 0xffffff, 0.08)
+    card.strokeRoundedRect(cardX, cardY, cardW, cardH, 16)
+    card.setScrollFactor(0)
 
-    // Main title - Japanese
-    const title = this.add.text(400, 148, '横スクロールアクションゲーム', {
-      fontSize: '36px',
-      color: '#f1f5f9',
+    // タイトル（カード内・Hub風）
+    const title = this.add.text(400, cardY + 52, '横スクロールアクションゲーム', {
+      fontSize: '28px',
+      color: TEXT_MAIN,
       fontFamily: 'Inter, Arial, sans-serif',
       fontStyle: 'bold',
     })
-    title.setOrigin(0.5)
+    title.setOrigin(0.5, 0)
+    title.setScrollFactor(0)
 
-    // English subtitle
-    const subtitle = this.add.text(400, 190, 'SIDE-SCROLL ACTION', {
-      fontSize: '13px',
-      color: '#6366f1',
-      fontFamily: 'Inter, Arial, sans-serif',
-    })
-    subtitle.setOrigin(0.5)
-
-    // Line under subtitle
-    const subLine = this.add.graphics()
-    subLine.fillGradientStyle(0xf43f5e, 0xf43f5e, 0x6366f1, 0x6366f1, 0.4, 0.4, 0.4, 0.4)
-    subLine.fillRect(300, 213, 200, 1)
-
-    // Controls section
-    this.add.text(400, 252, 'CONTROLS', {
-      fontSize: '11px',
-      color: '#475569',
-      fontFamily: 'Inter, Arial, sans-serif',
-    }).setOrigin(0.5)
-
-    // Key badges
-    const controls = [
-      { key: '← →', label: '左右移動' },
-      { key: 'SPACE', label: 'ジャンプ' },
-    ]
-
-    controls.forEach((ctrl, i) => {
-      const x = 330 + i * 140
-      const y = 290
-
-      const badge = this.add.graphics()
-      badge.fillStyle(0xffffff, 0.05)
-      badge.fillRoundedRect(x - 42, y - 14, 84, 28, 6)
-      badge.lineStyle(1, 0xffffff, 0.08)
-      badge.strokeRoundedRect(x - 42, y - 14, 84, 28, 6)
-
-      this.add.text(x, y, ctrl.key, {
-        fontSize: '13px',
-        color: '#cbd5e1',
-        fontFamily: 'monospace',
-        fontStyle: 'bold',
-      }).setOrigin(0.5)
-
-      this.add.text(x, y + 26, ctrl.label, {
-        fontSize: '11px',
-        color: '#64748b',
+    // 操作方法
+    const instructions = this.add.text(
+      400,
+      cardY + 100,
+      '操作方法:\n\n← → : 左右移動\nスペース : ジャンプ',
+      {
+        fontSize: '20px',
+        color: TEXT_MAIN,
+        align: 'center',
+        lineSpacing: 8,
         fontFamily: 'Inter, Arial, sans-serif',
-      }).setOrigin(0.5)
-    })
+      }
+    )
+    instructions.setOrigin(0.5, 0)
+    instructions.setScrollFactor(0)
 
-    // Mission text
-    this.add.text(400, 370, '全5レベルをクリアしよう！', {
-      fontSize: '16px',
-      color: '#94a3b8',
+    // 5 STAGES
+    const stagesText = this.add.text(400, cardY + 240, '5 STAGES', {
+      fontSize: '12px',
+      color: TEXT_SUB,
       fontFamily: 'Inter, Arial, sans-serif',
-    }).setOrigin(0.5)
+    })
+    stagesText.setOrigin(0.5, 0)
+    stagesText.setScrollFactor(0)
 
-    // Stage dots
+    // ステージドット
     const stageDots = this.add.graphics()
     for (let i = 0; i < 5; i++) {
       const dx = 370 + i * 16
-      stageDots.fillStyle(0x6366f1, 0.6)
-      stageDots.fillCircle(dx, 400, 4)
+      stageDots.fillStyle(ACCENT, 0.6)
+      stageDots.fillCircle(dx, cardY + 268, 4)
     }
+    stageDots.setScrollFactor(0)
 
-    this.add.text(400, 400, '5 STAGES', {
-      fontSize: '11px',
-      color: '#64748b',
+    // スタートボタン（Hubのボタン風）
+    const btnW = 200
+    const btnH = 48
+    const btnX = 400 - btnW / 2
+    const btnY = cardY + 300
+
+    const btnBg = this.add.graphics()
+    btnBg.fillStyle(ACCENT, 0.9)
+    btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+    btnBg.setScrollFactor(0)
+
+    const startBtn = this.add.text(400, btnY + btnH / 2, 'スタート', {
+      fontSize: '18px',
+      color: '#ffffff',
       fontFamily: 'Inter, Arial, sans-serif',
-    }).setOrigin(0.5)
+      fontStyle: 'bold',
+    })
+    startBtn.setOrigin(0.5)
+    startBtn.setScrollFactor(0)
 
-    // Start prompt - adapt text for touch devices
-    const isTouchDevice = this.sys.game.device.input.touch
-    const startText = this.add.text(
-      400, 500,
-      isTouchDevice ? 'TAP TO START' : 'PRESS SPACE TO START',
-      {
-        fontSize: '16px',
-        color: '#6366f1',
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontStyle: 'bold',
-      }
-    )
-    startText.setOrigin(0.5)
+    // ボタン全体をクリック可能に
+    const hitArea = this.add.zone(400, btnY + btnH / 2, btnW, btnH)
+    hitArea.setInteractive({ useHandCursor: true })
+    hitArea.setScrollFactor(0)
 
-    this.tweens.add({
-      targets: startText,
-      alpha: 0.3,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
+    hitArea.on('pointerup', () => {
+      this.scene.start('GameScene')
+    })
+    hitArea.on('pointerover', () => {
+      btnBg.clear()
+      btnBg.fillStyle(ACCENT, 1)
+      btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+      startBtn.setScale(1.02)
+    })
+    hitArea.on('pointerout', () => {
+      btnBg.clear()
+      btnBg.fillStyle(ACCENT, 0.9)
+      btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
+      startBtn.setScale(1)
     })
 
-    // Bottom decorative line
-    const bottomBar = this.add.graphics()
-    bottomBar.fillGradientStyle(0x6366f1, 0x6366f1, 0xf43f5e, 0xf43f5e, 0.3, 0.3, 0.3, 0.3)
-    bottomBar.fillRect(250, 555, 300, 1)
-
-    // Start game handler
-    const startGame = () => {
-      this.cameras.main.fadeOut(300, 10, 10, 15)
-      this.time.delayedCall(300, () => {
-        this.scene.start('GameScene')
-      })
-    }
-
-    // Keyboard: space key
-    this.spaceKeyListener = startGame
-    this.input.keyboard!.on('keydown-SPACE', this.spaceKeyListener)
-
-    // Touch: tap anywhere to start
-    if (isTouchDevice) {
-      this.input.once('pointerup', startGame)
-    }
+    // Enter / スペースキーでスタート
+    const startWithKey = () => this.scene.start('GameScene')
+    this.input.keyboard!.on('keydown-SPACE', startWithKey)
+    this.input.keyboard!.on('keydown-ENTER', startWithKey)
   }
 }

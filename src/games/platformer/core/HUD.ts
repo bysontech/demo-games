@@ -34,31 +34,49 @@ export class HUD {
     this.livesText.setScrollFactor(0)
     this.livesText.setDepth(1000)
 
-    // Pause button - styled pill
-    this.pauseButton = scene.add.text(760, 22, 'II', {
-      fontSize: '16px',
-      color: '#94a3b8',
+    // Create pause button (Hub/Launcher style - glass card)
+    const pauseBtnBg = scene.add.graphics()
+    pauseBtnBg.fillStyle(0xffffff, 0.06)
+    pauseBtnBg.fillRoundedRect(700, 10, 90, 36, 10)
+    pauseBtnBg.lineStyle(1, 0xffffff, 0.1)
+    pauseBtnBg.strokeRoundedRect(700, 10, 90, 36, 10)
+    pauseBtnBg.setScrollFactor(0)
+    pauseBtnBg.setDepth(1000)
+    
+    this.pauseButton = scene.add.text(745, 28, 'ポーズ', {
+      fontSize: '14px',
+      color: '#f1f5f9',
       fontFamily: 'Inter, Arial, sans-serif',
       fontStyle: 'bold',
-      backgroundColor: '#1e1e2e',
-      padding: { x: 10, y: 4 },
     })
     this.pauseButton.setOrigin(0.5)
     this.pauseButton.setScrollFactor(0)
-    this.pauseButton.setDepth(1000)
-    this.pauseButton.setInteractive({ useHandCursor: true })
-    this.pauseButton.on('pointerup', () => {
+    this.pauseButton.setDepth(1001)
+    
+    const pauseHitArea = scene.add.zone(745, 28, 90, 36)
+    pauseHitArea.setInteractive({ useHandCursor: true })
+    pauseHitArea.setScrollFactor(0)
+    pauseHitArea.setDepth(1001)
+    pauseHitArea.on('pointerup', () => {
       if (this.onPauseClick) {
         this.onPauseClick()
       }
     })
-    this.pauseButton.on('pointerover', () => {
-      this.pauseButton.setColor('#e2e8f0')
-      this.pauseButton.setBackgroundColor('#2a2a3e')
+    pauseHitArea.on('pointerover', () => {
+      pauseBtnBg.clear()
+      pauseBtnBg.fillStyle(0xffffff, 0.1)
+      pauseBtnBg.fillRoundedRect(700, 10, 90, 36, 10)
+      pauseBtnBg.lineStyle(1, 0xffffff, 0.15)
+      pauseBtnBg.strokeRoundedRect(700, 10, 90, 36, 10)
+      this.pauseButton.setScale(1.05)
     })
-    this.pauseButton.on('pointerout', () => {
-      this.pauseButton.setColor('#94a3b8')
-      this.pauseButton.setBackgroundColor('#1e1e2e')
+    pauseHitArea.on('pointerout', () => {
+      pauseBtnBg.clear()
+      pauseBtnBg.fillStyle(0xffffff, 0.06)
+      pauseBtnBg.fillRoundedRect(700, 10, 90, 36, 10)
+      pauseBtnBg.lineStyle(1, 0xffffff, 0.1)
+      pauseBtnBg.strokeRoundedRect(700, 10, 90, 36, 10)
+      this.pauseButton.setScale(1)
     })
     this.onPauseClick = () => {}
   }

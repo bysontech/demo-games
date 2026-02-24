@@ -35,6 +35,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start('MenuScene')
+    // Start game directly; start screen is the Launcher (combined with menu)
+    this.scene.start('GameScene')
   }
 }

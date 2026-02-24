@@ -1,5 +1,9 @@
+export interface GameLaunchOptions {
+  onTitleRequest?: () => void
+}
+
 export interface GameModule {
-  launch(container: HTMLElement): void
+  launch(container: HTMLElement, options?: GameLaunchOptions): void
   destroy(): void
 }
 

@@ -4,7 +4,7 @@ export const games: GameMeta[] = [
   {
     id: 'platformer',
     title: 'Platformer',
-    description: '横スクロールアクション。全5ステージを攻略せよ！',
+    description: '固定画面アクション。全5ステージを攻略せよ！',
     color: '#e74c3c',
     icon: '🎮',
     load: () => import('./games/platformer/index'),
