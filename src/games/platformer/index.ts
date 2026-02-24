@@ -14,6 +14,13 @@ const platformerGame: GameModule = {
       width: GameConfig.width,
       height: GameConfig.height,
       parent: container,
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
+      input: {
+        activePointers: 3,
+      },
       physics: {
         default: 'arcade',
         arcade: {

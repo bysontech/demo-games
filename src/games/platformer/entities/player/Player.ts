@@ -8,6 +8,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private isJumping: boolean = false
   private lives: number = GameConfig.lives
 
+  // Touch input state (set externally by TouchControlsScene)
+  public touchLeft = false
+  public touchRight = false
+  public touchJump = false
+
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'player')
 
@@ -67,8 +72,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const blockLeft =
       this.scene.registry.get('level4BlockLeft') === true
     const leftDown =
-      this.leftKeys.some((k) => k.isDown) && !blockLeft
-    const rightDown = this.rightKeys.some((k) => k.isDown)
+      (this.leftKeys.some((k) => k.isDown) || this.touchLeft) && !blockLeft
+    const rightDown = this.rightKeys.some((k) => k.isDown) || this.touchRight
     if (leftDown) {
       this.setVelocityX(-GameConfig.playerSpeed)
     } else if (rightDown) {
@@ -78,12 +83,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     const onGround = this.body!.touching.down
-    const jumpPressed = this.jumpKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))
+    const jumpPressed =
+      this.jumpKeys.some((k) => Phaser.Input.Keyboard.JustDown(k)) || this.touchJump
 
     if (jumpPressed && onGround) {
       this.setVelocityY(GameConfig.playerJumpVelocity)
       this.isJumping = true
     }
+
+    // Consume touch jump flag
+    this.touchJump = false
 
     if (onGround && this.isJumping) {
       this.isJumping = false
