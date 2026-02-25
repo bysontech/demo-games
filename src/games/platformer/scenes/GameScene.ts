@@ -8,7 +8,6 @@ import { level2 } from '../levels/level2'
 import { level3 } from '../levels/level3'
 import { level4 } from '../levels/level4'
 import { level5 } from '../levels/level5'
-import { TouchControlsScene } from './TouchControlsScene'
 
 // Level accent colors (indigo -> teal -> rose -> purple -> crimson)
 const LEVEL_ACCENTS: number[] = [
@@ -59,8 +58,6 @@ export class GameScene extends Phaser.Scene {
   private pauseMenuActions: (() => void)[] = []
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
-  private touchControls: TouchControlsScene | null = null
-  private orientHint: Phaser.GameObjects.Container | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -70,18 +67,6 @@ export class GameScene extends Phaser.Scene {
     this.isGameOver = false
     this.isVictory = false
     this.isPaused = false
-
-    // Launch touch controls overlay on touch devices
-    if (this.sys.game.device.input.touch) {
-      if (!this.scene.get('TouchControlsScene')) {
-        this.scene.add('TouchControlsScene', TouchControlsScene, false)
-      }
-      this.scene.launch('TouchControlsScene')
-      this.touchControls = this.scene.get('TouchControlsScene') as TouchControlsScene
-
-      // Show landscape recommendation hint in portrait
-      this.setupOrientationHint()
-    }
 
     // Load first level
     this.loadLevel(1)
@@ -885,7 +870,6 @@ export class GameScene extends Phaser.Scene {
 
   private restartGame(): void {
     // Clear refs before restart so we don't use destroyed objects after restart
-    this.stopTouchControls()
     this.enemies = null
     this.platforms = null
     this.hud = null
@@ -893,7 +877,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private goToTitle(): void {
-    this.stopTouchControls()
     this.enemies = null
     this.platforms = null
     this.hud = null
@@ -905,71 +888,8 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private stopTouchControls(): void {
-    if (this.touchControls && this.scene.isActive('TouchControlsScene')) {
-      this.scene.stop('TouchControlsScene')
-    }
-    this.touchControls = null
-  }
-
-  private setupOrientationHint(): void {
-    const checkOrientation = () => {
-      const dw = this.scale.displaySize.width || window.innerWidth
-      const dh = this.scale.displaySize.height || window.innerHeight
-      const isPortrait = dh > dw
-
-      if (isPortrait && !this.orientHint) {
-        this.showOrientationHint()
-      } else if (!isPortrait && this.orientHint) {
-        this.orientHint.destroy()
-        this.orientHint = null
-      }
-    }
-
-    checkOrientation()
-    this.scale.on('resize', checkOrientation, this)
-  }
-
-  private showOrientationHint(): void {
-    const w = Number(this.game.config.width)
-    const bg = this.add.graphics()
-    bg.fillStyle(0x0a0a0f, 0.75)
-    bg.fillRoundedRect(w / 2 - 140, 4, 280, 28, 8)
-
-    const text = this.add.text(w / 2, 18, '横持ち推奨', {
-      fontSize: '13px',
-      color: '#94a3b8',
-      fontFamily: 'Inter, Arial, sans-serif',
-    }).setOrigin(0.5)
-
-    const icon = this.add.text(w / 2 - 58, 18, '📱↔', {
-      fontSize: '12px',
-    }).setOrigin(0.5)
-
-    this.orientHint = this.add.container(0, 0, [bg, text, icon])
-    this.orientHint.setScrollFactor(0)
-    this.orientHint.setDepth(2000)
-
-    // Auto-fade after 4 seconds
-    this.tweens.add({
-      targets: this.orientHint,
-      alpha: 0,
-      delay: 4000,
-      duration: 800,
-      onComplete: () => {
-        if (this.orientHint) {
-          this.orientHint.destroy()
-          this.orientHint = null
-        }
-      },
-    })
-  }
-
   shutdown(): void {
     // Clear references so we don't use destroyed objects after restart/stop
-    this.scale.off('resize')
-    this.stopTouchControls()
-    this.orientHint = null
     this.enemies = null
     this.platforms = null
     this.hud = null
@@ -1006,13 +926,12 @@ export class GameScene extends Phaser.Scene {
           this.player.x <= 24 &&
           this.player.y > 505
       )
-      // Relay touch input to player
-      if (this.touchControls) {
-        this.player.touchLeft = this.touchControls.leftDown
-        this.player.touchRight = this.touchControls.rightDown
-        if (this.touchControls.consumeJump()) {
-          this.player.touchJump = true
-        }
+      // Relay HTML touch input (stored on registry by index.ts) to player
+      this.player.touchLeft = this.registry.get('touchLeft') === true
+      this.player.touchRight = this.registry.get('touchRight') === true
+      if (this.registry.get('touchJump') === true) {
+        this.player.touchJump = true
+        this.registry.set('touchJump', false)
       }
       this.player.update()
     }
