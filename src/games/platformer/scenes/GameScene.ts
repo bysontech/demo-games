@@ -60,6 +60,7 @@ export class GameScene extends Phaser.Scene {
 
   private levels: LevelData[] = [level1, level2, level3, level4, level5]
   private touchControls: TouchControlsScene | null = null
+  private orientHint: Phaser.GameObjects.Container | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -77,6 +78,9 @@ export class GameScene extends Phaser.Scene {
       }
       this.scene.launch('TouchControlsScene')
       this.touchControls = this.scene.get('TouchControlsScene') as TouchControlsScene
+
+      // Show landscape recommendation hint in portrait
+      this.setupOrientationHint()
     }
 
     // Load first level
@@ -908,9 +912,64 @@ export class GameScene extends Phaser.Scene {
     this.touchControls = null
   }
 
+  private setupOrientationHint(): void {
+    const checkOrientation = () => {
+      const dw = this.scale.displaySize.width || window.innerWidth
+      const dh = this.scale.displaySize.height || window.innerHeight
+      const isPortrait = dh > dw
+
+      if (isPortrait && !this.orientHint) {
+        this.showOrientationHint()
+      } else if (!isPortrait && this.orientHint) {
+        this.orientHint.destroy()
+        this.orientHint = null
+      }
+    }
+
+    checkOrientation()
+    this.scale.on('resize', checkOrientation, this)
+  }
+
+  private showOrientationHint(): void {
+    const w = Number(this.game.config.width)
+    const bg = this.add.graphics()
+    bg.fillStyle(0x0a0a0f, 0.75)
+    bg.fillRoundedRect(w / 2 - 140, 4, 280, 28, 8)
+
+    const text = this.add.text(w / 2, 18, '横持ち推奨', {
+      fontSize: '13px',
+      color: '#94a3b8',
+      fontFamily: 'Inter, Arial, sans-serif',
+    }).setOrigin(0.5)
+
+    const icon = this.add.text(w / 2 - 58, 18, '📱↔', {
+      fontSize: '12px',
+    }).setOrigin(0.5)
+
+    this.orientHint = this.add.container(0, 0, [bg, text, icon])
+    this.orientHint.setScrollFactor(0)
+    this.orientHint.setDepth(2000)
+
+    // Auto-fade after 4 seconds
+    this.tweens.add({
+      targets: this.orientHint,
+      alpha: 0,
+      delay: 4000,
+      duration: 800,
+      onComplete: () => {
+        if (this.orientHint) {
+          this.orientHint.destroy()
+          this.orientHint = null
+        }
+      },
+    })
+  }
+
   shutdown(): void {
     // Clear references so we don't use destroyed objects after restart/stop
+    this.scale.off('resize')
     this.stopTouchControls()
+    this.orientHint = null
     this.enemies = null
     this.platforms = null
     this.hud = null

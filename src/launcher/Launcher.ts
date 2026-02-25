@@ -458,6 +458,38 @@ const launcherStyles = `
                 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 
+  /* Portrait: reduce padding so game canvas uses more width */
+  @media (orientation: portrait) {
+    .launcher-game {
+      padding: 0.5rem;
+    }
+    .launcher-game canvas {
+      border-radius: 8px;
+    }
+    .launcher-back {
+      top: 8px;
+      left: 8px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+    }
+    .launcher-start-content {
+      padding: 1rem;
+    }
+    .launcher-start-inner {
+      gap: 1rem;
+      padding: 1.25rem;
+    }
+    .launcher-start-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      font-size: 1.75rem;
+    }
+    .launcher-start-title {
+      font-size: 1.2rem;
+    }
+  }
+
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
