@@ -444,27 +444,95 @@ const launcherStyles = `
     flex: 1;
     width: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 0;
-    padding: 1rem;
+    padding: 0.5rem;
     z-index: 0;
+  }
+
+  /* Canvas wrapper: grows to fill, centers the canvas */
+  .game-canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    width: 100%;
   }
 
   .launcher-game canvas {
     display: block;
-    border-radius: 12px;
+    border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
                 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 
-  /* Portrait: reduce padding so game canvas uses more width */
+  /* ── HTML Touch Controls (outside canvas) ────────────── */
+  .game-touch-controls {
+    flex-shrink: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .touch-dpad {
+    display: flex;
+    gap: 10px;
+  }
+
+  .touch-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.1s, transform 0.1s;
+  }
+
+  .touch-btn:active, .touch-btn.active {
+    background: rgba(99, 102, 241, 0.25);
+    color: #e2e8f0;
+    transform: scale(0.93);
+  }
+
+  .touch-btn--jump {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+  }
+
+  /* Portrait: larger buttons for easier tapping */
   @media (orientation: portrait) {
-    .launcher-game {
-      padding: 0.5rem;
+    .game-touch-controls {
+      padding: 12px 16px 16px;
     }
-    .launcher-game canvas {
-      border-radius: 8px;
+    .touch-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+    }
+    .touch-btn--jump {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+    }
+    .touch-dpad {
+      gap: 12px;
     }
     .launcher-back {
       top: 8px;
