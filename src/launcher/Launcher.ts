@@ -200,6 +200,8 @@ const launcherStyles = `
     animation: launcherFadeIn 0.3s ease;
     position: relative;
     overflow: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     background:
       radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 20%, rgba(244, 63, 94, 0.08) 0%, transparent 50%),
@@ -224,11 +226,13 @@ const launcherStyles = `
   }
 
   .launcher-start {
-    position: absolute;
-    inset: 0;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    min-height: 0;
+    position: relative;
     z-index: 0;
   }
 
@@ -238,6 +242,7 @@ const launcherStyles = `
     width: 100%;
     max-width: 480px;
     padding: 2rem;
+    margin: auto;
   }
 
   .launcher-start-card {
@@ -440,16 +445,15 @@ const launcherStyles = `
   }
 
   .launcher-game {
-    position: relative;
-    flex: 1;
-    width: 100%;
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 0;
     padding: 0.5rem;
     z-index: 0;
+    overflow: hidden;
   }
 
   /* Canvas wrapper: grows to fill, centers the canvas */
@@ -459,7 +463,9 @@ const launcherStyles = `
     align-items: center;
     justify-content: center;
     min-height: 0;
+    min-width: 0;
     width: 100%;
+    overflow: hidden;
   }
 
   .launcher-game canvas {
@@ -555,6 +561,61 @@ const launcherStyles = `
     }
     .launcher-start-title {
       font-size: 1.2rem;
+    }
+  }
+
+  /* Mobile landscape: compact start screen so it fits / scrolls */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .launcher--active {
+      align-items: flex-start;
+    }
+    .launcher-start {
+      align-items: flex-start;
+      overflow-y: auto;
+    }
+    .launcher-start-content {
+      padding: 0.75rem 1rem;
+      margin: 0 auto;
+    }
+    .launcher-start-inner {
+      gap: 0.75rem;
+      padding: 1rem;
+    }
+    .launcher-start-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      font-size: 1.5rem;
+    }
+    .launcher-start-title {
+      font-size: 1.1rem;
+    }
+    .launcher-start-desc {
+      font-size: 0.8rem;
+    }
+    .launcher-start-howto {
+      padding-top: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    .launcher-start-howto-title {
+      font-size: 0.75rem;
+      margin-bottom: 0.2rem;
+    }
+    .launcher-start-howto-line {
+      font-size: 0.7rem;
+    }
+    .launcher-start-stages {
+      margin-top: 0.25rem;
+    }
+    .launcher-start-btn {
+      padding: 10px 22px;
+      font-size: 0.9rem;
+    }
+    .launcher-back {
+      top: 6px;
+      left: 6px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
     }
   }
 
