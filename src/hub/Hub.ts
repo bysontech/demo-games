@@ -125,7 +125,9 @@ const hubStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .hub-bg {
@@ -157,6 +159,7 @@ const hubStyles = `
     flex-direction: column;
     align-items: center;
     gap: 2.5rem;
+    margin: auto;
   }
 
   .hub-header {
@@ -365,5 +368,50 @@ const hubStyles = `
   @keyframes cardLaunch {
     0% { opacity: 1; transform: scale(1); }
     100% { opacity: 0; transform: scale(0.95); }
+  }
+
+  /* Mobile landscape: compact layout so content fits / scrolls */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .hub {
+      align-items: flex-start;
+    }
+    .hub-content {
+      padding: 1rem 1.5rem;
+      gap: 0.75rem;
+    }
+    .hub-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+    .hub-title {
+      font-size: 1.5rem;
+    }
+    .hub-subtitle {
+      margin-top: 0;
+      font-size: 0.75rem;
+    }
+    .hub-grid {
+      gap: 0.5rem;
+    }
+    .game-card-inner {
+      padding: 0.75rem 1rem;
+      gap: 0.75rem;
+    }
+    .game-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      font-size: 1.25rem;
+    }
+    .game-card-title {
+      font-size: 1rem;
+    }
+    .game-card-desc {
+      font-size: 0.75rem;
+    }
+    .hub-footer {
+      display: none;
+    }
   }
 `
