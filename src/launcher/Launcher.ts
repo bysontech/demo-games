@@ -475,6 +475,13 @@ const launcherStyles = `
                 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 
+  /* Mobile landscape: avoid horizontal shift by removing padding */
+  @media (max-width: 1024px) and (orientation: landscape) {
+    .launcher-game {
+      padding: 0;
+    }
+  }
+
   /* ── HTML Touch Controls (outside canvas) ────────────── */
   .game-touch-controls {
     flex-shrink: 0;
