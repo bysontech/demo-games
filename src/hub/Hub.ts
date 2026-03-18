@@ -1,5 +1,6 @@
 import { games } from '../registry'
 import type { GameMeta } from '../types'
+import { t } from '../i18n'
 
 export class Hub {
   private container: HTMLElement
@@ -31,11 +32,11 @@ export class Hub {
           <h1 class="hub-title">
             <span class="hub-title-accent">DEMO</span> GAMES
           </h1>
-          <p class="hub-subtitle">Select a game to play</p>
+          <p class="hub-subtitle">${t('hub.subtitle')}</p>
         </header>
         <div class="hub-grid" id="hub-grid"></div>
         <footer class="hub-footer">
-          <p>Press a card to start playing</p>
+          <p>${t('hub.footer')}</p>
         </footer>
       </div>
     `

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { t } from '../../../i18n'
 
 export class HUD {
   private bg: Phaser.GameObjects.Graphics
@@ -43,7 +44,7 @@ export class HUD {
     pauseBtnBg.setScrollFactor(0)
     pauseBtnBg.setDepth(1000)
     
-    this.pauseButton = scene.add.text(745, 28, 'ポーズ', {
+    this.pauseButton = scene.add.text(745, 28, t('hud.pause'), {
       fontSize: '14px',
       color: '#f1f5f9',
       fontFamily: 'Inter, Arial, sans-serif',

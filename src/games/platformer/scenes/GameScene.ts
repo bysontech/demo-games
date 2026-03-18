@@ -8,18 +8,16 @@ import { level2 } from '../levels/level2'
 import { level3 } from '../levels/level3'
 import { level4 } from '../levels/level4'
 import { level5 } from '../levels/level5'
+import { t } from '../../../i18n'
 
 // Level accent colors (indigo -> teal -> rose -> purple -> crimson)
 const LEVEL_ACCENTS: number[] = [
   0x6366f1, 0x10b981, 0xf43f5e, 0xa855f7, 0xef4444,
 ]
 
-const GAME_OVER_HINTS: Record<number, string> = {
-  1: 'がんばれ！',
-  2: '敵の動きをよく見て、タイミングを合わせよう！',
-  3: '時間をかければチャンスあり！？',
-  4: '見えないところに近道あり！？',
-  5: '敵と同じ動きをしてみよう！！',
+function getGameOverHint(level: number): string {
+  const key = `hint.${level}` as 'hint.1' | 'hint.2' | 'hint.3' | 'hint.4' | 'hint.5'
+  return t(key)
 }
 
 export class GameScene extends Phaser.Scene {
@@ -488,7 +486,7 @@ export class GameScene extends Phaser.Scene {
     const hintText = this.add.text(
       400,
       270,
-      GAME_OVER_HINTS[this.currentLevel] ?? 'がんばれ！',
+      getGameOverHint(this.currentLevel),
       {
         fontSize: '20px',
         color: '#e2e8f0',
@@ -501,7 +499,7 @@ export class GameScene extends Phaser.Scene {
     hintText.setDepth(2000)
 
     // Create restart button
-    const restartButton = this.add.text(400, 360, 'リスタート', {
+    const restartButton = this.add.text(400, 360, t('game.restart'), {
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#333333',
@@ -524,7 +522,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Create title button
-    const titleButton = this.add.text(400, 430, 'タイトルに戻る', {
+    const titleButton = this.add.text(400, 430, t('game.backToTitle'), {
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#333333',
@@ -576,7 +574,7 @@ export class GameScene extends Phaser.Scene {
     bg.setDepth(1999)
 
     // Create title text
-    const titleText = this.add.text(400, 200, 'CONGRATULATIONS!\n全レベルクリア！', {
+    const titleText = this.add.text(400, 200, 'CONGRATULATIONS!\n' + t('game.allClear'), {
       fontSize: '36px',
       color: '#FFD700',
       align: 'center',
@@ -588,7 +586,7 @@ export class GameScene extends Phaser.Scene {
     titleText.setDepth(2000)
 
     // Create restart button
-    const restartButton = this.add.text(400, 350, 'もう一度プレイ', {
+    const restartButton = this.add.text(400, 350, t('game.playAgain'), {
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#333333',
@@ -611,7 +609,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Create title button
-    const titleButton = this.add.text(400, 420, 'タイトルに戻る', {
+    const titleButton = this.add.text(400, 420, t('game.backToTitle'), {
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#333333',
@@ -715,7 +713,7 @@ export class GameScene extends Phaser.Scene {
     glow.setDepth(1999)
 
     // Title
-    const titleText = this.add.text(400, cardY + 50, 'ポーズ', {
+    const titleText = this.add.text(400, cardY + 50, t('game.paused'), {
       fontSize: '32px',
       color: '#f1f5f9',
       fontFamily: 'Inter, Arial, sans-serif',
@@ -799,9 +797,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Buttons
-    const resumeBtn = createButton(cardY + 140, 'ゲームを再開', () => this.resumeGame(), true)
-    const restartBtn = createButton(cardY + 210, 'リスタート', () => this.restartGame())
-    const titleBtn = createButton(cardY + 280, 'タイトルに戻る', () => this.goToTitle())
+    const resumeBtn = createButton(cardY + 140, t('game.resume'), () => this.resumeGame(), true)
+    const restartBtn = createButton(cardY + 210, t('game.restart'), () => this.restartGame())
+    const titleBtn = createButton(cardY + 280, t('game.backToTitle'), () => this.goToTitle())
 
     this.pauseMenuButtonTexts = [
       resumeBtn[1] as Phaser.GameObjects.Text,
