@@ -1,4 +1,5 @@
 import type { GameMeta, GameModule } from '../types'
+import { t } from '../i18n'
 
 export class Launcher {
   private container: HTMLElement
@@ -86,9 +87,9 @@ export class Launcher {
               <p class="launcher-start-desc">${meta.description}</p>
             </div>
             <div class="launcher-start-howto">
-              <p class="launcher-start-howto-title">操作方法:</p>
-              <p class="launcher-start-howto-line">← → / A D : 左右移動</p>
-              <p class="launcher-start-howto-line">スペース / ↑ / W : ジャンプ</p>
+              <p class="launcher-start-howto-title">${t('launcher.controls.title')}</p>
+              <p class="launcher-start-howto-line">${t('launcher.controls.move')}</p>
+              <p class="launcher-start-howto-line">${t('launcher.controls.jump')}</p>
             </div>
             <div class="launcher-start-stages">
               <span class="launcher-start-stages-text">5 STAGES</span>
@@ -101,7 +102,7 @@ export class Launcher {
               </div>
             </div>
             <button type="button" class="launcher-start-btn" id="launcher-start-btn">
-              <span>スタート</span>
+              <span>${t('launcher.start')}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
