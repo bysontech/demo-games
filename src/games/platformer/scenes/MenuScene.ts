@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { t } from '../../../i18n'
 
 // Hub風カラー
 const BG = 0x0a0a0f
@@ -39,7 +40,7 @@ export class MenuScene extends Phaser.Scene {
     card.setScrollFactor(0)
 
     // タイトル（カード内・Hub風）
-    const title = this.add.text(400, cardY + 52, '横スクロールアクションゲーム', {
+    const title = this.add.text(400, cardY + 52, t('menu.title'), {
       fontSize: '28px',
       color: TEXT_MAIN,
       fontFamily: 'Inter, Arial, sans-serif',
@@ -52,7 +53,7 @@ export class MenuScene extends Phaser.Scene {
     const instructions = this.add.text(
       400,
       cardY + 100,
-      '操作方法:\n\n← → : 左右移動\nスペース : ジャンプ',
+      t('menu.controls'),
       {
         fontSize: '20px',
         color: TEXT_MAIN,
@@ -93,7 +94,7 @@ export class MenuScene extends Phaser.Scene {
     btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 12)
     btnBg.setScrollFactor(0)
 
-    const startBtn = this.add.text(400, btnY + btnH / 2, 'スタート', {
+    const startBtn = this.add.text(400, btnY + btnH / 2, t('menu.start'), {
       fontSize: '18px',
       color: '#ffffff',
       fontFamily: 'Inter, Arial, sans-serif',
