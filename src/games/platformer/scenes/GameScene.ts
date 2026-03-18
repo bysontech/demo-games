@@ -48,6 +48,7 @@ export class GameScene extends Phaser.Scene {
   private static readonly LEVEL3_GOAL_PLATFORM_CX = 750
   private static readonly LEVEL3_GOAL_PLATFORM_CY = 250
   private level5RightPressCount: number = 0
+  private level5LastTouchRight: boolean = false
   private static readonly LEVEL5_GOAL_PLATFORM_X = 600
   private static readonly LEVEL5_GOAL_PLATFORM_Y = 200
   private static readonly LEVEL5_GOAL_PLATFORM_WIDTH = 120
@@ -102,6 +103,7 @@ export class GameScene extends Phaser.Scene {
     this.goalPlatformFalling = false
     if (levelNumber === 5) {
       this.level5RightPressCount = 0
+      this.level5LastTouchRight = false
     }
 
     this.isLevelTransitioning = false
@@ -340,11 +342,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevel5RightPressRemoveEnemy(): void {
+    let rightPressed = false
+
     const kb = this.input.keyboard
-    if (!kb) return
-    const rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT)
-    const dKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-    if (Phaser.Input.Keyboard.JustDown(rightKey) || Phaser.Input.Keyboard.JustDown(dKey)) {
+    if (kb) {
+      const rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT)
+      const dKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+      if (Phaser.Input.Keyboard.JustDown(rightKey) || Phaser.Input.Keyboard.JustDown(dKey)) {
+        rightPressed = true
+      }
+    }
+
+    const touchRight = this.registry.get('touchRight') === true
+    if (touchRight && !this.level5LastTouchRight) {
+      rightPressed = true
+    }
+    this.level5LastTouchRight = touchRight
+
+    if (rightPressed) {
       this.level5RightPressCount += 1
       if (this.level5RightPressCount >= 10) {
         this.level5RightPressCount = 0
@@ -896,6 +911,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(): void {
+    if (this.input.keyboard) {
+      const esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+      if (Phaser.Input.Keyboard.JustDown(esc)) {
+        this.togglePause()
+      }
+    }
+
     if (this.isGameOver) {
       this.handleMenuKeys(
         2,

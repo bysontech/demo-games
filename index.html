@@ -34,6 +34,24 @@
             width: 100%;
             height: 100%;
         }
+        /* Mobile landscape: allow scroll and center content without影響 to PC / 縦持ち */
+        @media (max-width: 1024px) and (orientation: landscape) {
+            html,
+            body {
+                height: auto;
+            }
+            body {
+                position: static;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            #app {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
